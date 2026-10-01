@@ -1,0 +1,10 @@
+# Secrets and local config
+.env*
+
+# Statement exports and real data
+*.csv
+*.xls*
+
+# Tooling
+node_modules/
+.DS_Store
