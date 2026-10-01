@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- connect-src: narrow https://*.neon.tech to your exact Data API and Auth hosts once known (see README). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.neon.tech; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Finance</title>
+  <meta name="description" content="Household finance tracker (test front end)">
+  <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111418" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div id="offline-banner" class="banner banner-warn" role="status" hidden>You are offline. Data will load when you reconnect.</div>
+
+  <section id="screen-loading" class="screen screen-center">
+    <p class="muted">Loading…</p>
+  </section>
+
+  <section id="screen-signin" class="screen screen-center" hidden>
+    <img src="icons/icon.svg" alt="" width="72" height="72">
+    <h1>Finance</h1>
+    <p class="muted">Household finance tracker</p>
+    <button id="btn-signin" class="btn btn-primary btn-wide" type="button">Sign in with Google</button>
+    <p id="signin-error" class="error-text" role="alert" hidden></p>
+  </section>
+
+  <section id="screen-denied" class="screen screen-center" hidden>
+    <h1>This account is not authorised</h1>
+    <p class="muted">You are signed in as <strong id="denied-email"></strong>, but this account has no access to the data.</p>
+    <button id="btn-denied-signout" class="btn btn-wide" type="button">Sign out</button>
+  </section>
+
+  <div id="screen-app" class="app" hidden>
+    <header class="topbar">
+      <div class="topbar-row">
+        <h1 class="topbar-title">Finance <span id="mock-badge" class="badge" hidden>mock</span></h1>
+        <button id="btn-signout" class="btn btn-small" type="button">Sign out</button>
+      </div>
+      <div id="month-picker" class="month-picker">
+        <button id="btn-prev-month" class="btn btn-icon" type="button" aria-label="Previous month">‹</button>
+        <span id="month-label" class="month-label" aria-live="polite"></span>
+        <button id="btn-next-month" class="btn btn-icon" type="button" aria-label="Next month">›</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <section id="tab-overview" class="tab" aria-label="Overview"></section>
+      <section id="tab-transactions" class="tab" aria-label="Transactions" hidden>
+        <div class="filters">
+          <input id="txn-search" type="search" placeholder="Search merchant or description" aria-label="Search transactions" autocomplete="off">
+          <select id="txn-category" aria-label="Filter by category"></select>
+        </div>
+        <div id="txn-list"></div>
+      </section>
+      <section id="tab-review" class="tab" aria-label="Review" hidden></section>
+    </main>
+
+    <nav class="tabbar" aria-label="Sections">
+      <button class="tabbar-btn" type="button" data-tab="overview" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        <span>Overview</span>
+      </button>
+      <button class="tabbar-btn" type="button" data-tab="transactions">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        <span>Transactions</span>
+      </button>
+      <button class="tabbar-btn" type="button" data-tab="review">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3 8-8M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"/></svg>
+        <span>Review</span>
+        <span id="review-count" class="tab-count" hidden></span>
+      </button>
+    </nav>
+  </div>
+
+  <dialog id="sheet" class="sheet" aria-labelledby="sheet-title">
+    <form id="sheet-form" class="sheet-body">
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <h2 id="sheet-title"></h2>
+      <div id="sheet-content"></div>
+      <p id="sheet-error" class="error-text" role="alert" hidden></p>
+      <div class="sheet-actions">
+        <button id="sheet-cancel" class="btn" type="button">Cancel</button>
+        <button id="sheet-save" class="btn btn-primary" type="submit">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
