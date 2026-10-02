@@ -3,8 +3,9 @@
 // with the connection string in the Neon-Connection-String header.
 
 function neonEndpoint_(connectionString) {
-  const match = connectionString.match(/^postgres(?:ql)?:\/\/[^@]+@([^/:?]+)/);
-  if (!match) throw new Error('NEON_CONNECTION_STRING is not a postgresql:// URL');
+  // The host follows the last '@' (an unencoded '@' in a password would otherwise confuse it).
+  const match = connectionString.match(/^postgres(?:ql)?:\/\/.*@([^/:?@]+)(?::\d+)?\//);
+  if (!match) throw new Error('The Neon connection string is not a postgresql://user:password@host/db URL');
   return 'https://' + match[1].replace(/^[^.]+\./, 'api.') + '/sql';
 }
 
@@ -24,7 +25,12 @@ function neonQuery(connectionString, query, params) {
   } catch (err) {
     throw new Error('Neon returned HTTP ' + status + ' with a non-JSON body');
   }
-  if (status !== 200) throw new Error('Neon error (HTTP ' + status + '): ' + (body.message || text.slice(0, 300)));
+  if (status !== 200) {
+    let hint = '';
+    if (/invalid port|invalid connection string/i.test(body.message || '')) hint = ' (use NEON_PASSWORD instead, or URL-encode special characters in the password)';
+    if (/password authentication failed/i.test(body.message || '')) hint = ' (check the etl_ingest password)';
+    throw new Error('Neon error (HTTP ' + status + '): ' + (body.message || text.slice(0, 300)) + hint);
+  }
   return body.rows || [];
 }
 
