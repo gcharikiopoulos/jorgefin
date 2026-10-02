@@ -7,6 +7,7 @@ import { Kbd, Label, Mono } from '../dashboard/parts.jsx';
 import { signedAmount } from '../format.js';
 import { monoSx } from '../theme.js';
 import { useRefreshAfterWrite } from '../hooks.js';
+import { CONTROL } from './dense.js';
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -68,24 +69,24 @@ export function CategorizePanel({ item, onClose, onSaved }) {
         ].filter(Boolean).join(' · ')}
         onClose={onClose}
       />
-      <Box component="form" onSubmit={save} sx={{ mx: 1.5, mb: 1.5, p: 1.25, border: 1, borderColor: 'cockpit.line2', borderRadius: '3px', bgcolor: 'cockpit.panel2' }}>
-        <Stack spacing={1}>
+      <Box component="form" onSubmit={save} sx={{ mx: 1.5, mb: 1.5, p: 1.5, border: 1, borderColor: 'cockpit.line2', borderRadius: '3px', bgcolor: 'cockpit.panel2' }}>
+        <Stack spacing={1.5}>
           <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
             <Label sx={{ color: 'cockpit.tx' }}>Categorise</Label>
             <Kbd>C</Kbd>
           </Stack>
           <Box>
-            <Label sx={{ fontSize: 9 }}>Pattern</Label>
-            <Mono component="div" sx={{ fontSize: 10.5, color: 'cockpit.tx', overflowWrap: 'anywhere', mt: 0.25 }}>{item.description_norm}{matchType === 'prefix' ? '…' : ''}</Mono>
+            <Label sx={{ fontSize: 10.5 }}>Pattern</Label>
+            <Mono component="div" sx={{ fontSize: 12, color: 'cockpit.tx', overflowWrap: 'anywhere', mt: 0.25 }}>{item.description_norm}{matchType === 'prefix' ? '…' : ''}</Mono>
           </Box>
           <CategorySelect id="review-category" value={categoryId} onChange={setCategoryId} />
           <TextField label="Merchant name (optional)" placeholder="e.g. Corner shop" value={merchantName} onChange={(e) => setMerchantName(e.target.value)} slotProps={{ htmlInput: { maxLength: 80 } }} fullWidth />
           <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
-            <Label sx={{ fontSize: 9 }}>Match</Label>
-            <Box role="group" aria-label="Match" sx={{ display: 'inline-flex', border: 1, borderColor: 'cockpit.line2', borderRadius: '3px', overflow: 'hidden', height: 24 }}>
+            <Label sx={{ fontSize: 10.5 }}>Match</Label>
+            <Box role="group" aria-label="Match" sx={{ display: 'inline-flex', border: 1, borderColor: 'cockpit.line2', borderRadius: '3px', overflow: 'hidden', height: CONTROL }}>
               {[['exact', 'EXACT'], ['prefix', 'STARTS WITH']].map(([v, text], i) => (
                 <Box key={v} component="button" type="button" aria-pressed={matchType === v} onClick={() => setMatchType(v)}
-                  sx={{ ...monoSx, border: 0, borderLeft: i ? 1 : 0, borderColor: 'cockpit.line2', px: 1, fontSize: 9.5, fontWeight: 600, cursor: 'pointer', bgcolor: matchType === v ? 'primary.main' : 'cockpit.panel', color: matchType === v ? '#fff' : 'cockpit.tx2' }}>
+                  sx={{ ...monoSx, border: 0, borderLeft: i ? 1 : 0, borderColor: 'cockpit.line2', px: 1.5, fontSize: 12, fontWeight: 600, cursor: 'pointer', bgcolor: matchType === v ? 'primary.main' : 'cockpit.panel', color: matchType === v ? '#fff' : 'cockpit.tx2' }}>
                   {text}
                 </Box>
               ))}

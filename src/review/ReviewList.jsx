@@ -17,7 +17,7 @@ function Empty() {
     <Box sx={{ mt: 0.75, py: 6, textAlign: 'center', bgcolor: 'cockpit.panel', border: 1, borderColor: 'cockpit.line', borderRadius: '3px' }}>
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'center', gap: 1 }}>
         <Box sx={{ width: 7, height: 7, borderRadius: '1px', bgcolor: 'cockpit.pos' }} />
-        <Mono sx={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em' }}>ALL CAUGHT UP</Mono>
+        <Mono sx={{ fontSize: 12.5, fontWeight: 700, letterSpacing: '0.08em' }}>ALL CAUGHT UP</Mono>
       </Stack>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Every transaction has a category.</Typography>
     </Box>
@@ -90,12 +90,12 @@ function ReviewBody() {
   return (
     <SplitLayout panel={selected && <CategorizePanel item={selected} onClose={() => setSelectedId(null)} onSaved={next} />} onClose={() => setSelectedId(null)}>
       <Box sx={{ bgcolor: 'cockpit.panel', border: 1, borderColor: 'cockpit.line', borderRadius: '3px' }}>
-        <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5, flexWrap: 'wrap', minHeight: 30, px: 1.25, py: 0.5, borderBottom: 1, borderColor: 'cockpit.line' }}>
+        <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5, flexWrap: 'wrap', minHeight: 42, px: 1.5, py: 0.75, borderBottom: 1, borderColor: 'cockpit.line' }}>
           <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75 }}>
             <Box sx={{ width: 7, height: 7, borderRadius: '1px', bgcolor: data.length ? 'cockpit.warn' : 'cockpit.pos', opacity: 0.85 }} />
             <Label component="h1" sx={{ color: 'cockpit.tx', m: 0 }}>Review queue</Label>
           </Stack>
-          <Mono sx={{ display: 'flex', gap: 1.5, fontSize: 10.5, color: 'cockpit.tx3', '& b': { fontWeight: 600, color: 'cockpit.tx' } }}>
+          <Mono sx={{ display: 'flex', gap: 1.5, fontSize: 12, color: 'cockpit.tx3', '& b': { fontWeight: 600, color: 'cockpit.tx' } }}>
             <span>DESCRIPTIONS <b>{data.length}</b></span>
             <span>TXNS <b>{txns}</b></span>
             <span>OUT <b>{signedAmount(out)}</b></span>
@@ -122,21 +122,21 @@ function ReviewBody() {
                   onClick={() => (selectedId === r.id ? setSelectedId(null) : openAt(i))} aria-selected={selectedId === r.id}
                   sx={rowSx({ active: selectedId === r.id, cursor: i === cursor })}>
                   <Box component="td" sx={tdSx} title={[r.sample_description, norm].filter(Boolean).join(' · ')}>
-                    <Box component="span" sx={{ ...monoSx, fontSize: 11, fontWeight: 600 }}>{r.sample_description || r.description_norm}</Box>
-                    {norm && <Mono sx={{ fontSize: 10, color: 'cockpit.tx3', ml: 1, display: { xs: 'none', sm: 'inline' } }}>{norm}</Mono>}
+                    <Box component="span" sx={{ ...monoSx, fontSize: 12.5, fontWeight: 600 }}>{r.sample_description || r.description_norm}</Box>
+                    {norm && <Mono sx={{ fontSize: 11.5, color: 'cockpit.tx3', ml: 1, display: { xs: 'none', sm: 'inline' } }}>{norm}</Mono>}
                   </Box>
-                  <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 11, textAlign: 'right', fontWeight: 600 }}>{num(r.txn_count)}</Box>
-                  <Box component="td" sx={{ ...tdSx, ...hideBelowSm, ...monoSx, fontSize: 10.5, color: 'cockpit.tx3' }}>{outN} · {inN}</Box>
-                  <Box component="td" sx={{ ...tdSx, ...hideBelowMd, ...monoSx, fontSize: 10.5, color: 'cockpit.tx2' }} title={`${formatDate(r.first_seen)} – ${formatDate(r.last_seen)}`}>
+                  <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12.5, textAlign: 'right', fontWeight: 600 }}>{num(r.txn_count)}</Box>
+                  <Box component="td" sx={{ ...tdSx, ...hideBelowSm, ...monoSx, fontSize: 12, color: 'cockpit.tx3' }}>{outN} · {inN}</Box>
+                  <Box component="td" sx={{ ...tdSx, ...hideBelowMd, ...monoSx, fontSize: 12, color: 'cockpit.tx2' }} title={`${formatDate(r.first_seen)} – ${formatDate(r.last_seen)}`}>
                     {r.first_seen === r.last_seen ? formatDayMonth(r.first_seen) : `${formatDayMonth(r.first_seen)} – ${formatDayMonth(r.last_seen)}`}
                   </Box>
-                  <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 11.5, fontWeight: 600, textAlign: 'right', color: num(r.net_amount) > 0 ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(r.net_amount)}</Box>
+                  <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 13, fontWeight: 600, textAlign: 'right', color: num(r.net_amount) > 0 ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(r.net_amount)}</Box>
                 </Box>
               );
             })}
           </tbody>
         </Box>
-        <Mono component="div" sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1.5, px: 1.25, py: 0.75, fontSize: 9.5, color: 'cockpit.tx3' }}>
+        <Mono component="div" sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1.5, px: 1.25, py: 0.75, fontSize: 11, color: 'cockpit.tx3' }}>
           <span>Click a row to make a rule; the next one opens after saving</span>
           <Box sx={{ flexGrow: 1 }} />
           <span><Kbd>J</Kbd> <Kbd>K</Kbd> move</span>
@@ -151,7 +151,7 @@ function ReviewBody() {
 
 export function ReviewList() {
   return (
-    <List title="Review" actions={false} component="div" sort={{ field: 'txn_count', order: 'DESC' }} perPage={200} exporter={false} empty={<Empty />} pagination={false} sx={{ '& .RaList-main': { mt: 0.75 } }}>
+    <List title="Review" actions={false} component="div" sort={{ field: 'txn_count', order: 'DESC' }} perPage={200} exporter={false} empty={<Empty />} pagination={false} sx={{ '& .RaList-main': { mt: 1.25 } }}>
       <ReviewBody />
     </List>
   );
