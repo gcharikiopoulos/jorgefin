@@ -54,6 +54,10 @@ If you change either value, change the Content-Security-Policy `connect-src` in 
 
 Neon Auth itself lets any Google account sign up. Such an account just sees no data and gets "This account is not authorised".
 
+## Email import (ETL)
+
+Bank alert emails are imported by a Google Apps Script in [`etl/`](etl/README.md), which sends them to Neon through `fin_ingest_email_transactions` (`db/002_email_ingest.sql`).
+
 ## Deploy to GitHub Pages
 
 The workflow `.github/workflows/deploy.yml` builds the app on every push to `main` and publishes `dist/` to Pages.

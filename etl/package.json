@@ -1,0 +1,9 @@
+{
+  "name": "jorgefin-etl",
+  "private": true,
+  "type": "commonjs",
+  "description": "Gmail to Neon ETL (Google Apps Script). Tests run with plain Node, no dependencies.",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}

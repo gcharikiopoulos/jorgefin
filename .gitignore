@@ -12,3 +12,7 @@ node_modules/
 # Claude Code personal settings
 .claude/settings.local.json
 dist/
+
+# Apps Script (clasp): script id and credentials stay local
+etl/.clasp.json
+.clasprc.json
