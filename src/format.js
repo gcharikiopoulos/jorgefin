@@ -60,6 +60,10 @@ const SOURCES = {
 };
 export const sourceLabel = (source) => SOURCES[source] || source || '';
 
+// Four-letter source tags for dense tables.
+const SOURCE_TAGS = { card_alert: 'CARD', account_alert: 'ACCT', statement_csv: 'STMT', manual: 'MAN', mock: 'DEMO' };
+export const sourceShort = (source) => SOURCE_TAGS[source] || (source ? String(source).slice(0, 4).toUpperCase() : '');
+
 // Name to show for a transaction, plus the bank's description when it says something different.
 const plain = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
 export const sameText = (a, b) => plain(a) === plain(b);

@@ -8,7 +8,7 @@ import { useRefreshAfterWrite } from '../hooks.js';
 
 // How many other transactions share this one's description, and how many of those
 // were categorised by hand (a rule leaves those alone).
-function useIdentical(transaction) {
+export function useIdentical(transaction) {
   const dataProvider = useDataProvider();
   const norm = transaction?.description_norm;
   return useQuery({

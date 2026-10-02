@@ -9,9 +9,10 @@ import { GridLines, KpiTile, Label, Light, Mono, Panel, QueryState, delta, niceT
 import { useCategories, useMonths } from '../hooks.js';
 import { checkAccess, num } from '../backend.js';
 import {
-  REST_COLOR, amount, axisAmount, categoryColor, formatDayMonth, formatMonth, formatShortMonth, formatTime, parseDate, percent, signedAmount, txnName, txnTypeLabel,
+  REST_COLOR, amount, axisAmount, categoryColor, formatDayMonth, formatMonth, formatShortMonth, formatTime, parseDate, percent, signedAmount, sourceShort, txnName, txnTypeLabel,
 } from '../format.js';
 import { monoSx } from '../theme.js';
+import { CategoryTag } from '../components/CategoryTag.jsx';
 
 const MAX_CATEGORIES = 10;
 const LARGE_TXN = 500;
@@ -21,7 +22,6 @@ const transactionsLink = (filter) => `/transactions?filter=${encodeURIComponent(
 const daysIn = (month) => { const d = parseDate(month); return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); };
 const thisMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; };
 const avg = (a) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0);
-const SOURCES = { card_alert: 'CARD', account_alert: 'ACCT', statement_csv: 'STMT', manual: 'MAN', mock: 'DEMO' };
 const SOURCE_ORDER = ['card_alert', 'account_alert', 'statement_csv', 'manual', 'mock'];
 
 // ---------- shared queries ----------
@@ -345,7 +345,7 @@ function MonthLedger({ months, index, txQuery }) {
             {sources.map((x, i) => <Box key={x.s} sx={{ flex: `${x.n} 1 0`, bgcolor: shades[i] }} />)}
           </Box>
           <Mono sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'cockpit.tx3' }}>
-            {sources.map((x, i) => <span key={x.s}><Box component="span" sx={{ color: shades[i] }}>■</Box> {SOURCES[x.s] || x.s} {x.n}</span>)}
+            {sources.map((x, i) => <span key={x.s}><Box component="span" sx={{ color: shades[i] }}>■</Box> {sourceShort(x.s)} {x.n}</span>)}
           </Mono>
         </Box>
       )}
@@ -597,20 +597,6 @@ function TopMerchants({ query }) {
   );
 }
 
-// Category tag for dense rows; uncategorised rows get a dashed amber "Assign…".
-export function CategoryTag({ categoryId, name, color }) {
-  const theme = useTheme();
-  const { data: categories = [] } = useCategories();
-  const unc = categoryId == null;
-  const dot = unc ? null : categoryColor(categoryId, categories, theme.palette.mode, color);
-  return (
-    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.625, maxWidth: '100%', height: 16, px: 0.75, borderRadius: '2px', fontSize: 10.5, fontWeight: 500, border: 1, borderStyle: unc ? 'dashed' : 'solid', borderColor: unc ? 'cockpit.warn' : 'cockpit.line', color: unc ? 'cockpit.warn' : 'cockpit.tx2', bgcolor: unc ? 'cockpit.warnBg' : 'cockpit.panel2' }}>
-      <Box component="span" sx={{ width: 6, height: 6, borderRadius: '1px', flex: 'none', bgcolor: dot, border: unc ? 1 : 0, borderStyle: 'dashed', borderColor: 'cockpit.warn' }} />
-      <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{unc ? 'Assign…' : name || 'Unknown'}</Box>
-    </Box>
-  );
-}
-
 function RecentTransactions({ month, query }) {
   const navigate = useNavigate();
   return (
@@ -639,7 +625,7 @@ function RecentTransactions({ month, query }) {
                   <Box component="td" sx={{ ...tdSx, ...hideXs, ...monoSx, fontSize: 10, color: 'cockpit.tx3' }} title={t.description}>{detail || t.description}</Box>
                   <Box component="td" sx={{ ...tdSx, ...hideXs, fontSize: 11, color: 'cockpit.tx2' }}>{txnTypeLabel(t.txn_type)}</Box>
                   <Box component="td" sx={tdSx}><CategoryTag categoryId={t.category_id} name={t.category} color={t.color} /></Box>
-                  <Box component="td" sx={{ ...tdSx, ...hideXs, ...monoSx, fontSize: 9.5, color: 'cockpit.tx3' }}>{SOURCES[t.source] || ''}</Box>
+                  <Box component="td" sx={{ ...tdSx, ...hideXs, ...monoSx, fontSize: 9.5, color: 'cockpit.tx3' }}>{sourceShort(t.source)}</Box>
                   <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 11.5, fontWeight: 600, textAlign: 'right', color: credit ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(t.signed_amount)}</Box>
                 </Box>
               );
