@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { Alert, Box, Button, Card, Grid, IconButton, LinearProgress, List as MuiList, ListItemButton, ListItemText, MenuItem, Skeleton, Stack, TextField, Typography, useTheme } from '@mui/material';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { PieChart } from '@mui/x-charts/PieChart';
+import { LineChart } from '@mui/x-charts/LineChart';
 import { useDataProvider, Title } from 'react-admin';
 import { useQuery } from '@tanstack/react-query';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -16,7 +17,7 @@ import { CategoryChip } from '../components/CategoryChip.jsx';
 import { Amount } from '../components/Amount.jsx';
 import { useCategories, useMonths } from '../hooks.js';
 import { checkAccess, num } from '../backend.js';
-import { REST_COLOR, categoryColor, compactMoney, formatDate, formatMonth, formatShortMonth, money, parseDate, percent, seriesColor } from '../format.js';
+import { REST_COLOR, categoryColor, compactMoney, formatDate, formatMonth, formatShortMonth, formatTime, money, parseDate, percent, seriesColor, txnName } from '../format.js';
 
 const MAX_SLICES = 8;
 const transactionsLink = (filter) => `/transactions?filter=${encodeURIComponent(JSON.stringify(filter))}`;
@@ -56,7 +57,7 @@ function KpiRow({ months, index }) {
   const uncategorised = num(m.uncategorized_count);
 
   return (
-    <Grid container spacing={2}>
+    <Grid container spacing={1.5}>
       <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
         <KpiCard label="Income" icon={<ArrowDownwardIcon fontSize="small" />} value={money(m.income)} caption={`${num(m.txn_count)} transactions`}
           trend={series('income')} trendLabels={labels} color={seriesColor(0, mode)} deltaValue={delta(income, prev && num(prev.income))} valueFormatter={(v) => money(v)} />
@@ -86,7 +87,7 @@ function CashFlowChart({ months, index }) {
   return (
     <Panel title="Cash flow" subtitle="Income and expenses by month">
       <BarChart
-        height={360}
+        height={260}
         borderRadius={4}
         grid={{ horizontal: true }}
         margin={{ left: 0, right: 8, top: 16, bottom: 0 }}
@@ -98,6 +99,41 @@ function CashFlowChart({ months, index }) {
         ]}
         slotProps={{ legend: { position: { vertical: 'top', horizontal: 'end' } } }}
       />
+    </Panel>
+  );
+}
+
+function BalanceChart({ month }) {
+  const theme = useTheme();
+  const dataProvider = useDataProvider();
+  const query = useQuery({ queryKey: ['balance-history'], queryFn: () => dataProvider.getBalanceHistory() });
+  return (
+    <Panel title="Balance" subtitle="At the end of each month">
+      <QueryState query={query} height={220} empty="No balance on record yet.">
+        {(rows) => {
+          // Up to 18 months, ending at the month picked above.
+          const upTo = rows.filter((r) => r.month <= month);
+          const window = (upTo.length ? upTo : rows).slice(-18);
+          const last = window[window.length - 1];
+          return (
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                {money(last.balance)} on {formatDate(last.day)}
+              </Typography>
+              <LineChart
+                height={220}
+                grid={{ horizontal: true }}
+                margin={{ left: 0, right: 28, top: 8, bottom: 0 }}
+                hideLegend
+                xAxis={[{ scaleType: 'point', data: window.map((r) => formatShortMonth(r.month)) }]}
+                yAxis={[{ valueFormatter: (v) => compactMoney(v), width: 64 }]}
+                series={[{ data: window.map((r) => r.balance), label: 'Balance', area: true, showMark: window.length <= 24, curve: 'monotoneX', color: seriesColor(0, theme.palette.mode), valueFormatter: (v) => money(v) }]}
+                sx={{ '& .MuiLineChart-area': { fillOpacity: 0.14 } }}
+              />
+            </>
+          );
+        }}
+      </QueryState>
     </Panel>
   );
 }
@@ -124,20 +160,20 @@ function CategoryDonut({ month }) {
           if (rest.length) slices.push({ id: 'other', value: rest.reduce((s, r) => s + num(r.total), 0), label: 'Other', color: REST_COLOR });
           return (
             <Stack direction={{ xs: 'column', sm: 'row', md: 'column', xl: 'row' }} spacing={2} sx={{ alignItems: 'center' }}>
-              <Box sx={{ position: 'relative', width: 200, height: 200, flex: 'none' }}>
+              <Box sx={{ position: 'relative', width: 168, height: 168, flex: 'none' }}>
                 <PieChart
-                  width={200}
-                  height={200}
+                  width={168}
+                  height={168}
                   hideLegend
                   margin={0}
-                  series={[{ data: slices, innerRadius: 64, outerRadius: 96, paddingAngle: 1.5, cornerRadius: 4, valueFormatter: (item) => `${money(item.value)} · ${percent(total ? item.value / total : 0)}` }]}
+                  series={[{ data: slices, innerRadius: 54, outerRadius: 82, paddingAngle: 1.5, cornerRadius: 4, valueFormatter: (item) => `${money(item.value)} · ${percent(total ? item.value / total : 0)}` }]}
                 />
                 <Stack sx={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
                   <Typography variant="caption" color="text.secondary">Total</Typography>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{money(total)}</Typography>
                 </Stack>
               </Box>
-              <Stack spacing={1} sx={{ width: '100%', minWidth: 0 }} component="ul" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+              <Stack spacing={0.5} sx={{ width: '100%', minWidth: 0 }} component="ul" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                 {slices.map((s) => (
                   <Stack component="li" key={s.id} direction="row" spacing={1} sx={{ alignItems: 'center', fontSize: 14 }}>
                     <Box sx={{ width: 10, height: 10, borderRadius: '3px', bgcolor: s.color, flex: 'none' }} />
@@ -176,7 +212,7 @@ function DailySpendChart({ month }) {
                 Average {money(average)} a day · highest {money(Math.max(...values))}
               </Typography>
               <BarChart
-                height={300}
+                height={220}
                 borderRadius={3}
                 grid={{ horizontal: true }}
                 margin={{ left: 0, right: 8, top: 8, bottom: 0 }}
@@ -219,7 +255,7 @@ function TopMerchants({ month, query }) {
           const top = [...totals.values()].sort((a, b) => b.total - a.total).slice(0, 6);
           const max = top[0]?.total || 1;
           return (
-            <Stack spacing={1.75}>
+            <Stack spacing={1.25}>
               {top.map((t) => (
                 <Box key={t.name}>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', justifyContent: 'space-between' }}>
@@ -245,11 +281,11 @@ function RecentTransactions({ month, query }) {
       <QueryState query={query} height={240} empty="No transactions this month.">
         {(rows) => (
           <MuiList disablePadding>
-            {rows.slice(0, 7).map((t) => (
-              <ListItemButton key={t.id} onClick={() => navigate(transactionsLink({ month, q: t.merchant_name || '' }))} sx={{ px: 1, borderRadius: 2, gap: 1.5 }}>
+            {rows.slice(0, 8).map((t) => (
+              <ListItemButton key={t.id} onClick={() => navigate(transactionsLink({ month, q: t.merchant_name || '' }))} sx={{ px: 1, py: 0.25, borderRadius: 2, gap: 1.5 }}>
                 <ListItemText
-                  primary={t.merchant_name || t.description}
-                  secondary={<Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.5 }} component="span"><span>{formatDate(t.txn_date)}</span><CategoryChip categoryId={t.category_id} name={t.category} color={t.color} /></Stack>}
+                  primary={txnName(t).name}
+                  secondary={<Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.25 }} component="span"><span>{[formatDate(t.txn_date), formatTime(t.txn_at)].filter(Boolean).join(' ')}</span><CategoryChip categoryId={t.category_id} name={t.category} color={t.color} /></Stack>}
                   slotProps={{ primary: { sx: { fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, secondary: { component: 'div' } }}
                   sx={{ minWidth: 0 }}
                 />
@@ -302,25 +338,23 @@ export function Dashboard() {
   if (!months.length) return <EmptyOrDenied />;
 
   return (
-    <Box sx={{ pb: 4, pt: { xs: 1, sm: 2 } }}>
+    <Box sx={{ pb: 3, pt: 1 }}>
       <Title title="Overview" />
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, mb: 2.5 }}>
-        <Box>
-          <Typography variant="h4" component="h1">Overview</Typography>
-          <Typography color="text.secondary">Your household money at a glance</Typography>
-        </Box>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, mb: 1.5 }}>
+        <Typography variant="h5" component="h1">Overview</Typography>
         <MonthPicker months={months} index={index} onChange={setIndex} />
       </Stack>
 
       {uncategorised > 0 && (
-        <Alert severity="warning" sx={{ mb: 2.5, borderRadius: 3 }} action={<Button color="inherit" size="small" onClick={() => navigate('/review')}>Review</Button>}>
+        <Alert severity="warning" sx={{ mb: 1.5, borderRadius: 3, py: 0 }} action={<Button color="inherit" size="small" onClick={() => navigate('/review')}>Review</Button>}>
           {uncategorised} {uncategorised === 1 ? 'transaction needs' : 'transactions need'} a category.
         </Alert>
       )}
 
       <KpiRow months={months} index={index} />
 
-      <Grid container spacing={2} sx={{ mt: 2 }}>
+      <Grid container spacing={1.5} sx={{ mt: 1.5 }}>
+        <Grid size={12}><BalanceChart month={month} /></Grid>
         <Grid size={{ xs: 12, md: 7, lg: 8 }}><CashFlowChart months={months} index={index} /></Grid>
         <Grid size={{ xs: 12, md: 5, lg: 4 }}><CategoryDonut month={month} /></Grid>
         <Grid size={{ xs: 12, md: 7, lg: 8 }}><DailySpendChart month={month} /></Grid>

@@ -10,7 +10,7 @@ import { percent } from '../format.js';
 export function Panel({ title, subtitle, action, children, sx }) {
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', ...sx }}>
-      <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, '&:last-child': { pb: 2.5 } }}>
+      <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1.25, p: 2, '&:last-child': { pb: 2 } }}>
         {(title || action) && (
           <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
             <Box>
@@ -75,7 +75,7 @@ export function KpiCard({ label, value, caption, trend, trendLabels, color, delt
   const theme = useTheme();
   return (
     <Card sx={{ height: '100%', cursor: onClick ? 'pointer' : 'default', transition: 'border-color .15s', '&:hover': onClick ? { borderColor: 'primary.main' } : undefined }} onClick={onClick}>
-      <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1, '&:last-child': { pb: 2 } }}>
+      <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, p: 1.75, '&:last-child': { pb: 1.75 } }}>
         <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', color: 'text.secondary' }}>
             {icon}

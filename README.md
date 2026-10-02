@@ -3,8 +3,8 @@
 An installable finance dashboard (PWA) for a household finance tracker, built with **React Admin** and **MUI X Charts**. It reads from a Neon Postgres database through the **Neon Data API** and signs users in with **Neon Auth** (Google). There is no backend code in this repo.
 
 Screens:
-- **Overview**: headline figures with month-on-month change and sparklines, cash flow by month, spending by category, daily spending, top merchants and recent transactions.
-- **Transactions**: searchable, filterable list. Click a row to change its category.
+- **Overview**: headline figures with month-on-month change and sparklines, month-end balance, cash flow by month, spending by category, daily spending, top merchants and recent transactions.
+- **Transactions**: searchable, filterable list with date and time (when the source has one), type and note. Click a row for its details and to change its category.
 - **Review**: uncategorised transactions grouped by description. Click one to create a rule.
 - **Categories**: the category list with its colours.
 
@@ -63,6 +63,7 @@ Schema and permission changes live in `db/` as numbered SQL files, written to be
 | `db/001_access_control.sql` | RLS, read-only grants for the web app, allow-list |
 | `db/002_email_ingest.sql` | Email staging table, ingest function, `etl_ingest` role |
 | `db/003_alert_dedup.sql` | One row per payment across card alerts, account alerts and statements |
+| `db/004_balance_posted_only.sql` | Daily balance from the latest statement balance, counting unposted alerts only after it |
 
 ## Email import (ETL)
 

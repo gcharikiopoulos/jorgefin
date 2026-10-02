@@ -120,6 +120,20 @@ function vTransactions() {
   });
 }
 
+// Daily balance worked back from an invented closing balance.
+function vBalanceDaily() {
+  const net = new Map();
+  for (const t of txns) net.set(t.posting_date, (net.get(t.posting_date) || 0) + (t.direction === 'credit' ? 1 : -1) * Number(t.amount));
+  const days = [...net.keys()].sort();
+  let balance = 3200;
+  const rows = [];
+  for (let i = days.length - 1; i >= 0; i--) {
+    rows.push({ account_id: 1, day: days[i], net_change: money(net.get(days[i])), balance: money(balance) });
+    balance -= net.get(days[i]);
+  }
+  return rows.reverse();
+}
+
 function vMonthlySummary() {
   const byMonth = new Map();
   for (const t of vTransactions()) {
@@ -244,7 +258,7 @@ const views = {
   v_daily_spend: vDailySpend,
   v_review_queue: vReviewQueue,
   v_merchant_summary: vMerchantSummary,
-  v_balance_daily: () => [],
+  v_balance_daily: vBalanceDaily,
   v_budget_status: () => [],
   categories: () => categories.map((c) => ({ ...c })),
 };

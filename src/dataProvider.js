@@ -164,6 +164,24 @@ export const dataProvider = {
       return unwrap(await client.from('v_daily_spend').select('*').gte('txn_date', month).lt('txn_date', end).order('txn_date')).data;
     }),
 
+  // Month-end balance across all accounts, oldest first: [{ month: 'YYYY-MM-01', day, balance }].
+  // The last day of the latest month is the most recent known day, not the month end.
+  getBalanceHistory: () =>
+    guard(async () => {
+      let rows;
+      if (isMock) rows = await (await getMock()).select('v_balance_daily');
+      else {
+        const client = await getClient();
+        // Newest first, so a server row cap would drop the oldest days, not the latest.
+        rows = unwrap(await client.from('v_balance_daily').select('day,balance').order('day', { ascending: false }).range(0, 9999)).data;
+      }
+      const byDay = new Map();
+      for (const r of rows) byDay.set(r.day, (byDay.get(r.day) || 0) + num(r.balance));
+      const byMonth = new Map();
+      for (const day of [...byDay.keys()].sort()) byMonth.set(`${day.slice(0, 7)}-01`, { month: `${day.slice(0, 7)}-01`, day, balance: byDay.get(day) });
+      return [...byMonth.values()];
+    }),
+
   // ---- writes ----
 
   // Creates a rule and applies it. Returns the number of transactions updated.
