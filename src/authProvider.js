@@ -1,7 +1,7 @@
 // React Admin auth provider over Neon Auth (Google, full-page redirect).
 // The session stays where the Neon SDK keeps it; nothing is copied to storage here.
 
-import { appUrl, getClient, getMock, isMock } from './backend.js';
+import { appUrl, checkAccess, getClient, getMock, isMock } from './backend.js';
 
 let mockSignedIn = true;
 
@@ -43,11 +43,16 @@ export const authProvider = {
     if (!data?.session) throw { redirectTo: '/login', message: false };
   },
 
-  // 401: the session is gone, sign in again. 403: signed in but not on the allow-list.
+  // A refused request only means "not authorised" when the allow-list check says so.
+  // A token that expired while the tab was idle, or a network blip, must not
+  // send the user to the "not authorised" screen.
   async checkError(error) {
     const status = error?.status;
-    if (status === 401) throw { redirectTo: '/login', message: 'Your session has ended. Please sign in again.' };
-    if (status === 403) throw { logoutUser: false, redirectTo: '/not-authorised', message: false };
+    if (status !== 401 && status !== 403) return;
+    const access = await checkAccess();
+    if (access === 'signed-out') throw { redirectTo: '/login', message: 'Your session has ended. Please sign in again.' };
+    if (access === 'denied') throw { logoutUser: false, redirectTo: '/not-authorised', message: false };
+    // 'allowed' or 'unknown': transient; leave the user where they are so the query can retry.
   },
 
   async getIdentity() {

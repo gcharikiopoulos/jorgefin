@@ -39,6 +39,30 @@ export function unwrap({ data, error, status, count }) {
   return { data, count };
 }
 
+// Works out why a request was refused, from the session and the database's own
+// allow-list check rather than from status codes:
+//   'signed-out' - no session (expired or cleared): sign in again
+//   'denied'     - signed in, but fin_is_allowed() says no
+//   'allowed'    - signed in and allowed: the failure was transient
+//   'unknown'    - could not tell (offline, network error)
+export async function checkAccess() {
+  if (isMock) return 'allowed';
+  try {
+    const client = await getClient();
+    const { data } = await client.auth.getSession();
+    if (!data?.session) return 'signed-out';
+    const { data: allowed, error } = await client.rpc('fin_is_allowed');
+    if (error) {
+      console.error('Access check failed', error);
+      return 'unknown';
+    }
+    return allowed === true ? 'allowed' : 'denied';
+  } catch (err) {
+    console.error('Access check failed', err);
+    return 'unknown';
+  }
+}
+
 // Base URL of the app: keeps the GitHub Pages subpath, drops query and hash.
 export const appUrl = () => window.location.origin + window.location.pathname;
 

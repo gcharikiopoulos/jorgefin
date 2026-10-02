@@ -15,7 +15,7 @@ import { Panel, QueryState, KpiCard, delta } from './parts.jsx';
 import { CategoryChip } from '../components/CategoryChip.jsx';
 import { Amount } from '../components/Amount.jsx';
 import { useCategories, useMonths } from '../hooks.js';
-import { isMock, num } from '../backend.js';
+import { checkAccess, num } from '../backend.js';
 import { REST_COLOR, categoryColor, compactMoney, formatDate, formatMonth, formatShortMonth, money, parseDate, percent, seriesColor } from '../format.js';
 
 const MAX_SLICES = 8;
@@ -263,6 +263,16 @@ function RecentTransactions({ month, query }) {
   );
 }
 
+// No months at all: either an empty database or an account not on the allow-list
+// (RLS returns no rows). Ask the database which one it is.
+function EmptyOrDenied() {
+  const query = useQuery({ queryKey: ['access-check'], queryFn: checkAccess, staleTime: 0 });
+  if (query.isPending) return <Skeleton variant="rounded" height={200} sx={{ mt: 2 }} />;
+  if (query.data === 'denied') return <Navigate to="/not-authorised" replace />;
+  if (query.data === 'signed-out') return <Navigate to="/login" replace />;
+  return <Typography sx={{ p: 4 }} color="text.secondary">No transactions yet.</Typography>;
+}
+
 export function Dashboard() {
   const monthsQuery = useMonths();
   const [index, setIndex] = useState(0); // 0 = latest month with data, not the calendar month
@@ -289,7 +299,7 @@ export function Dashboard() {
     );
   }
   // Accounts that are not on the allow-list see no rows at all (RLS).
-  if (!months.length) return isMock ? <Typography sx={{ p: 4 }}>No data yet.</Typography> : <Navigate to="/not-authorised" replace />;
+  if (!months.length) return <EmptyOrDenied />;
 
   return (
     <Box sx={{ pb: 4, pt: { xs: 1, sm: 2 } }}>

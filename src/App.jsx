@@ -13,7 +13,13 @@ import { ReviewList } from './review/ReviewList.jsx';
 import { CategoryList } from './categories/CategoryList.jsx';
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, retry: (count, error) => count < 2 && !error?.status } },
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      // Network errors: retry twice. 401/403: retry once, which picks up a refreshed token.
+      retry: (count, error) => (error?.status === 401 || error?.status === 403 ? count < 1 : count < 2 && !error?.status),
+    },
+  },
 });
 
 export function App() {
