@@ -33,11 +33,19 @@ They are derived from the database endpoint host the same way the Neon SDK does 
 
 If you change either value, update the Content-Security-Policy `connect-src` in `index.html` to the same two hosts, and bump `CACHE_VERSION` in `sw.js` so installed copies pick up the new files.
 
-### Neon Auth settings
+### Neon setup (done)
 
-- **Trusted domain**: add the GitHub Pages origin, `https://gcharikiopoulos.github.io`, under Auth > Configuration > Domains. Use the origin only: no repo path, no trailing slash. `localhost` is allowed by default.
-- **Google**: enable the Google provider. Neon's shared test credentials are fine to start with. If you use your own Google OAuth client, its authorised redirect URI must be `<AUTH_URL>/callback/google`.
-- Neon Auth lets any Google account sign up. Access to data is controlled by row-level security in the database. An account that is signed in but sees no rows in `v_monthly_summary` is shown "This account is not authorised".
+- **Neon Auth** (Managed Better Auth) and the **Data API** are enabled on branch `main`. The Data API was set up without the default "grant everything" option.
+- **Google** sign-in uses Neon's shared OAuth credentials, which is fine for testing. If you switch to your own Google OAuth client, its authorised redirect URI must be `<AUTH_URL>/callback/google`.
+- **Trusted domain**: `https://gcharikiopoulos.github.io` (origin only). `localhost` is allowed by default.
+- **Access control** is in `db/001_access_control.sql`:
+  - RLS is on for every table.
+  - Signed-in users can only read, and only if their verified email is in `app_allowed_users`.
+  - Writes only go through `fin_categorize` and `fin_set_category`, which check the allow-list.
+  - Anonymous requests get nothing.
+- To give someone access, run this in the Neon SQL Editor: `insert into public.app_allowed_users (email) values ('someone@example.com');`
+
+Neon Auth itself lets any Google account sign up. Such an account just sees no data and gets "This account is not authorised".
 
 ## Deploy to GitHub Pages
 
