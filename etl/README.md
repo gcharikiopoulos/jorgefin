@@ -57,8 +57,7 @@ A debit-card purchase triggers both alerts within seconds, and the same payment 
    | Property | Value |
    | --- | --- |
    | `NEON_PASSWORD` | the `etl_ingest` password, exactly as you set it (special characters are fine; the script encodes it) |
-   | `ALERT_SENDERS` | `alerts@alpha.gr,ebanking@alpha.gr` |
-   | `GMAIL_LABEL` | `03.Banks` (optional: only search under this label) |
+   | `ALERT_SENDERS` | `alerts@alpha.gr,ebanking@alpha.gr` (all mail from these senders is read, wherever it is filed; the parsers skip anything that is not a transaction) |
 
 4. **Check.** Run `testConnection()`; the log should say `Connected as etl_ingest`. Then run `dryRun()` and compare the logged transactions with the emails. It writes nothing. The first run looks back 400 days (`FIRST_RUN_DAYS` in `src/config.js`); later runs continue from the last one.
 

@@ -45,9 +45,8 @@ function process_({ dryRun }) {
       : new Date(startedAt.getTime() - FIRST_RUN_DAYS * 86400e3);
     const query = [
       `from:(${config.senders.join(' OR ')})`,
-      config.label ? `label:${quoteLabel_(config.label)}` : '',
       `after:${Math.floor(since.getTime() / 1000)}`,
-    ].filter(Boolean).join(' ');
+    ].join(' ');
 
     const threads = GmailApp.search(query, 0, MAX_THREADS_PER_RUN);
     const rows = [];
@@ -91,11 +90,6 @@ function process_({ dryRun }) {
   } finally {
     lock.releaseLock();
   }
-}
-
-// Gmail label search syntax: spaces and slashes become dashes.
-function quoteLabel_(label) {
-  return label.trim().replace(/[\s/]+/g, '-');
 }
 
 // Clears the cursor so the next run looks back FIRST_RUN_DAYS again (already-loaded emails are skipped by the database).

@@ -3,7 +3,6 @@
 //   NEON_CONNECTION_STRING  alternative to NEON_PASSWORD: a full postgresql:// URL with the
 //                           password already URL-encoded. NEON_PASSWORD wins if both are set.
 //   ALERT_SENDERS           comma-separated sender addresses of the bank alert emails
-//   GMAIL_LABEL             optional Gmail label to search in, e.g. Banks
 //
 // Progress is kept in the script property LAST_RUN_AT (set by the script). Gmail
 // groups these alerts into long threads and labels apply to whole threads, so
@@ -31,7 +30,6 @@ function getConfig() {
   return {
     connectionString,
     senders,
-    label: (props.getProperty('GMAIL_LABEL') || '').trim(),
     lastRunAt: props.getProperty('LAST_RUN_AT'),
   };
 }
