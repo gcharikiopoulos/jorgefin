@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Box, Card, Typography, useMediaQuery } from '@mui/material';
-import { Datagrid, FunctionField, List, NumberField, SimpleList, useListContext } from 'react-admin';
+import { Datagrid, FunctionField, List, SimpleList, useListContext } from 'react-admin';
 import { Amount } from '../components/Amount.jsx';
 import { CategorizePanel } from '../components/CategorizePanel.jsx';
 import { SplitLayout } from '../components/SidePanel.jsx';
@@ -9,7 +9,12 @@ import { num } from '../backend.js';
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const range = (r) => (r.first_seen === r.last_seen ? formatDate(r.first_seen) : `${formatDate(r.first_seen)} – ${formatDate(r.last_seen)}`);
-const signedTotal = (r) => (r.direction === 'credit' ? num(r.total_amount) : -num(r.total_amount));
+// "166 out · 29 in" when a description has both payments and credits.
+const split = (r) => {
+  const out = num(r.debit_count);
+  const inn = num(r.credit_count);
+  return out && inn ? `${out} out · ${inn} in` : '';
+};
 
 function Empty() {
   return (
@@ -28,8 +33,8 @@ function Rows({ selectedId, onSelect }) {
     return (
       <SimpleList
         primaryText={(r) => r.sample_description || r.description_norm}
-        secondaryText={(r) => `${plural(num(r.txn_count), 'transaction')} · ${range(r)}`}
-        tertiaryText={(r) => <Amount value={signedTotal(r)} credit={r.direction === 'credit'} />}
+        secondaryText={(r) => [plural(num(r.txn_count), 'transaction'), split(r), range(r)].filter(Boolean).join(' · ')}
+        tertiaryText={(r) => <Amount value={r.net_amount} />}
         rowClick={(id) => { onSelect(data.find((r) => r.id === id)); return false; }}
         rowSx={(r) => ({ borderBottom: 1, borderColor: 'divider', ...selectedSx(r) })}
       />
@@ -43,9 +48,14 @@ function Rows({ selectedId, onSelect }) {
           {!sameText(r.sample_description, r.description_norm) && <Typography variant="caption" color="text.secondary">{r.description_norm}</Typography>}
         </Box>
       )} />
-      <NumberField source="txn_count" label="Transactions" />
+      <FunctionField label="Transactions" sortBy="txn_count" render={(r) => (
+        <Box>
+          <Typography variant="body2">{num(r.txn_count)}</Typography>
+          {split(r) && <Typography variant="caption" color="text.secondary">{split(r)}</Typography>}
+        </Box>
+      )} />
       <FunctionField label="Seen" sortBy="last_seen" render={range} />
-      <FunctionField label="Total" sortBy="total_amount" textAlign="right" render={(r) => <Amount value={signedTotal(r)} credit={r.direction === 'credit'} />} />
+      <FunctionField label="Net" sortBy="net_amount" textAlign="right" render={(r) => <Amount value={r.net_amount} />} />
     </Datagrid>
   );
 }

@@ -65,6 +65,7 @@ Schema and permission changes live in `db/` as numbered SQL files, written to be
 | `db/003_alert_dedup.sql` | One row per payment across card alerts, account alerts and statements |
 | `db/004_balance_posted_only.sql` | Daily balance from the latest statement balance, counting unposted alerts only after it |
 | `db/005_category_editing.sql` | Category colours, and the functions to add, edit, reorder and delete categories |
+| `db/006_review_by_description.sql` | Review queue grouped by description only, matching how rules work |
 
 ## Email import (ETL)
 

@@ -7,7 +7,7 @@ import { AuthError, getClient, getMock, isMock, nextMonth, num, unwrap } from '.
 // resource -> { view, id }
 const RESOURCES = {
   transactions: { view: 'v_transactions', id: (r) => r.id },
-  review: { view: 'v_review_queue', id: (r) => `${r.description_norm}|${r.direction}` },
+  review: { view: 'v_review_queue', id: (r) => r.description_norm },
   categories: { view: 'categories', id: (r) => r.id },
   merchants: { view: 'v_merchant_summary', id: (r) => r.merchant_id ?? `none|${r.merchant_name}` },
 };

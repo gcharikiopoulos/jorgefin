@@ -3,7 +3,7 @@ import { Alert, Box, Button, FormControl, FormControlLabel, FormLabel, Radio, Ra
 import { useDataProvider, useNotify } from 'react-admin';
 import { CategorySelect } from './CategorySelect.jsx';
 import { PanelHeader, PanelTransactions } from './SidePanel.jsx';
-import { money } from '../format.js';
+import { signedMoney } from '../format.js';
 import { useRefreshAfterWrite } from '../hooks.js';
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -58,7 +58,11 @@ export function CategorizePanel({ item, onClose, onSaved }) {
     <>
       <PanelHeader
         title={item.sample_description || item.description_norm}
-        subtitle={`${plural(Number(item.txn_count), 'uncategorised transaction')} · ${money(item.total_amount)}`}
+        subtitle={[
+          plural(Number(item.txn_count), 'uncategorised transaction'),
+          Number(item.debit_count) && Number(item.credit_count) ? `${item.debit_count} out, ${item.credit_count} in` : '',
+          `net ${signedMoney(item.net_amount)}`,
+        ].filter(Boolean).join(' · ')}
         onClose={onClose}
       />
       <Box component="form" onSubmit={save} sx={{ px: 2, pb: 2 }}>

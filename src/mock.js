@@ -188,19 +188,20 @@ function vDailySpend() {
   return [...days.values()].map((d) => ({ ...d, spend: money(d.spend) }));
 }
 
+// One row per description, payments and credits together (db/006_review_by_description.sql).
 function vReviewQueue() {
   const groups = new Map();
   for (const t of txns) {
     if (t.category_id != null) continue;
-    const key = `${t.description_norm}|${t.direction}`;
-    const g = groups.get(key) || { description_norm: t.description_norm, sample_description: t.description, direction: t.direction, txn_count: 0, total_amount: 0, first_seen: t.txn_date, last_seen: t.txn_date };
+    const g = groups.get(t.description_norm) || { description_norm: t.description_norm, sample_description: t.description, txn_count: 0, debit_count: 0, credit_count: 0, total_out: 0, total_in: 0, first_seen: t.txn_date, last_seen: t.txn_date };
+    const amount = Number(t.amount);
     g.txn_count += 1;
-    g.total_amount += Number(t.amount);
+    if (t.direction === 'credit') { g.credit_count += 1; g.total_in += amount; } else { g.debit_count += 1; g.total_out += amount; }
     if (t.txn_date < g.first_seen) g.first_seen = t.txn_date;
     if (t.txn_date > g.last_seen) g.last_seen = t.txn_date;
-    groups.set(key, g);
+    groups.set(t.description_norm, g);
   }
-  return [...groups.values()].map((g) => ({ ...g, total_amount: money(g.total_amount) }));
+  return [...groups.values()].map((g) => ({ ...g, total_out: money(g.total_out), total_in: money(g.total_in), net_amount: money(g.total_in - g.total_out) }));
 }
 
 function vMerchantSummary() {
