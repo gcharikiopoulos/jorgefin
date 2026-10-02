@@ -66,16 +66,42 @@ export const REST_COLOR = '#c3c2b7';
 
 export const seriesColor = (slot, mode = 'light') => SERIES[mode === 'dark' ? 'dark' : 'light'][slot] ?? OTHER_COLOR;
 
-// Colour follows the category, never its rank: an expense category's slot is its
-// position among expense categories (by sort_order); past the 8th it folds to grey.
-// Income is green and transfers neutral, so they never borrow an expense hue.
-export function categoryColor(categoryId, categories, mode, explicitColor) {
-  if (explicitColor) return explicitColor;
+// Swatches offered when editing a category (the first 12 are what new databases start with).
+export const CATEGORY_SWATCHES = [
+  '#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#4a3aa7',
+  '#e34948', '#0e9aa7', '#8a5a44', '#b04fc6', '#7d9c1f', '#d4719a',
+  '#0b8a3e', '#5aa469', '#2e7d6b', '#6c8893', '#8a94a6', '#5f7a8a',
+];
+
+// A category's colour: its own, else its parent's, else a fallback by kind.
+// The category list is the source of truth (it reflects edits straight away);
+// a colour carried on a row is only used when the category is not in the list.
+export function categoryColor(categoryId, categories, mode, rowColor) {
   if (categoryId == null) return OTHER_COLOR;
   const cat = categories.find((c) => c.id === categoryId);
-  if (!cat) return OTHER_COLOR;
+  if (!cat) return rowColor || OTHER_COLOR;
+  if (cat.color) return cat.color;
+  const parent = cat.parent_id != null ? categories.find((c) => c.id === cat.parent_id) : null;
+  if (parent?.color) return parent.color;
   if (cat.kind === 'income') return mode === 'dark' ? '#2fbf62' : '#0b8a3e';
   if (cat.kind === 'transfer') return mode === 'dark' ? '#8fa3b8' : '#6c8893';
-  const expenses = categories.filter((c) => c.kind === 'expense').sort((a, b) => a.sort_order - b.sort_order);
-  return seriesColor(expenses.findIndex((c) => c.id === cat.id), mode);
+  const top = parent || cat;
+  const expenses = categories.filter((c) => c.kind === 'expense' && c.parent_id == null).sort((a, b) => a.sort_order - b.sort_order);
+  return seriesColor(expenses.findIndex((c) => c.id === top.id), mode);
+}
+
+// Top-level categories in display order, each with its children: [{ ...parent, children: [...] }].
+export function categoryTree(categories, kind) {
+  const bySort = (a, b) => a.sort_order - b.sort_order || a.id - b.id;
+  return categories
+    .filter((c) => c.parent_id == null && (!kind || c.kind === kind))
+    .sort(bySort)
+    .map((p) => ({ ...p, children: categories.filter((c) => c.parent_id === p.id).sort(bySort) }));
+}
+
+// "Parent › Child" for a subcategory, the plain name otherwise.
+export function categoryLabel(category, categories) {
+  if (!category) return '';
+  const parent = category.parent_id != null ? categories.find((c) => c.id === category.parent_id) : null;
+  return parent ? `${parent.name} › ${category.name}` : category.name;
 }

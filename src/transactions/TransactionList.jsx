@@ -4,7 +4,7 @@ import { Datagrid, FunctionField, List, Loading, SearchInput, SelectInput, Simpl
 import { CategoryChip } from '../components/CategoryChip.jsx';
 import { Amount } from '../components/Amount.jsx';
 import { SetCategoryDialog } from '../components/SetCategoryDialog.jsx';
-import { formatDate, formatMonth, formatTime, txnName, txnTypeLabel } from '../format.js';
+import { categoryTree, formatDate, formatMonth, formatTime, txnName, txnTypeLabel } from '../format.js';
 import { useCategories, useMonths } from '../hooks.js';
 
 const ellipsis = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
@@ -67,7 +67,10 @@ export function TransactionList() {
   if (isPending) return <Loading />;
 
   const monthChoices = (months || []).map((m) => ({ id: m.month, name: formatMonth(m.month) }));
-  const categoryChoices = [{ id: 'none', name: 'Uncategorised' }, ...categories.map((c) => ({ id: c.id, name: c.name }))];
+  const categoryChoices = [
+    { id: 'none', name: 'Uncategorised' },
+    ...categoryTree(categories).flatMap((p) => [{ id: p.id, name: p.name }, ...p.children.map((c) => ({ id: c.id, name: `${p.name} › ${c.name}` }))]),
+  ];
   const filters = [
     <SearchInput key="q" source="q" size="small" alwaysOn placeholder="Search merchant or description" />,
     <SelectInput key="month" source="month" size="small" label="Month" choices={monthChoices} alwaysOn emptyText="All months" />,

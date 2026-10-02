@@ -28,8 +28,8 @@ function mockFilter(rows, filter) {
         if (q && ![r.merchant_name, r.description, r.sample_description, r.name].some((v) => v && v.toLocaleLowerCase().includes(q))) return false;
       } else if (key === 'category_id' && value === 'none') {
         if (r.category_id != null) return false;
-      } else if (key === 'id') {
-        if (![].concat(value).map(String).includes(String(r.id))) return false;
+      } else if (key === 'id' || Array.isArray(value)) {
+        if (![].concat(value).map(String).includes(String(r[key]))) return false;
       } else if (String(r[key]) !== String(value)) {
         return false;
       }
@@ -62,8 +62,8 @@ function applyFilters(query, filter) {
       if (text) q = q.or(`merchant_name.ilike.*${text}*,description.ilike.*${text}*`);
     } else if (key === 'category_id' && value === 'none') {
       q = q.is('category_id', null);
-    } else if (key === 'id') {
-      q = q.in('id', [].concat(value));
+    } else if (key === 'id' || Array.isArray(value)) {
+      q = q.in(key, [].concat(value));
     } else {
       q = q.eq(key, value);
     }
@@ -81,8 +81,28 @@ async function guard(fn) {
   }
 }
 
+// A parent category's filter also matches its subcategories. The category list is
+// cached briefly and dropped after any category edit.
+let categoryCache = null;
+async function cachedCategories() {
+  if (!categoryCache || Date.now() - categoryCache.at > 60_000) {
+    categoryCache = { at: Date.now(), data: list('categories', { filter: {} }).then((r) => r.data) };
+    categoryCache.data.catch(() => { categoryCache = null; });
+  }
+  return categoryCache.data;
+}
+
+async function expandCategoryFilter(filter) {
+  const id = filter?.category_id;
+  if (id == null || id === '' || id === 'none' || Array.isArray(id)) return filter;
+  const categories = await cachedCategories();
+  const children = categories.filter((c) => String(c.parent_id) === String(id)).map((c) => c.id);
+  return children.length ? { ...filter, category_id: [Number(id), ...children] } : filter;
+}
+
 async function list(resource, { pagination, sort, filter } = {}) {
   const { view } = RESOURCES[resource];
+  if (resource === 'transactions') filter = await expandCategoryFilter(filter);
   const page = pagination?.page ?? 1;
   const perPage = pagination?.perPage ?? 1000;
   if (isMock) {
@@ -103,6 +123,14 @@ async function rpc(name, args) {
   if (isMock) return (await getMock()).rpc(name, args);
   const client = await getClient();
   return unwrap(await client.rpc(name, args)).data;
+}
+
+async function categoryWrite(name, args) {
+  try {
+    return await rpc(name, args);
+  } finally {
+    categoryCache = null;
+  }
 }
 
 const readOnly = () => Promise.reject(new Error('This resource is read-only'));
@@ -194,6 +222,30 @@ export const dataProvider = {
         p_match_type: matchType,
       })),
     ),
+
+  // Number of transactions per category id, over all months.
+  getCategoryUsage: () =>
+    guard(async () => {
+      let rows;
+      if (isMock) rows = await (await getMock()).select('v_monthly_by_category');
+      else {
+        const client = await getClient();
+        rows = unwrap(await client.from('v_monthly_by_category').select('category_id,txn_count').range(0, 9999)).data;
+      }
+      const usage = new Map();
+      for (const r of rows) if (r.category_id != null) usage.set(r.category_id, (usage.get(r.category_id) || 0) + num(r.txn_count));
+      return usage;
+    }),
+
+  // Category editing (fin_save_category, fin_delete_category, fin_move_category).
+  saveCategory: ({ id = null, name, kind, parentId = null, color = null }) =>
+    guard(async () => num(await categoryWrite('fin_save_category', { p_id: id, p_name: name, p_kind: kind, p_parent_id: parentId, p_color: color || null }))),
+
+  // Returns how many transactions were moved (or left uncategorised).
+  deleteCategory: ({ id, replaceId = null }) =>
+    guard(async () => num(await categoryWrite('fin_delete_category', { p_id: id, p_replace_id: replaceId }))),
+
+  moveCategory: ({ id, direction }) => guard(() => categoryWrite('fin_move_category', { p_id: id, p_direction: direction })),
 
   setCategory: ({ txnId, categoryId, note = null }) =>
     guard(() => rpc('fin_set_category', { p_txn_id: txnId, p_category_id: categoryId, p_note: note || null })),

@@ -3,17 +3,18 @@
 // strings, as Postgres `numeric` would arrive.
 
 const categories = [
-  { id: 1, name: 'Groceries', parent_id: null, kind: 'expense', color: null, sort_order: 10 },
-  { id: 2, name: 'Eating out', parent_id: null, kind: 'expense', color: null, sort_order: 20 },
-  { id: 3, name: 'Transport', parent_id: null, kind: 'expense', color: null, sort_order: 30 },
-  { id: 4, name: 'Utilities', parent_id: null, kind: 'expense', color: null, sort_order: 40 },
-  { id: 5, name: 'Rent', parent_id: null, kind: 'expense', color: null, sort_order: 50 },
-  { id: 6, name: 'Shopping', parent_id: null, kind: 'expense', color: null, sort_order: 60 },
-  { id: 7, name: 'Health', parent_id: null, kind: 'expense', color: null, sort_order: 70 },
-  { id: 8, name: 'Leisure', parent_id: null, kind: 'expense', color: null, sort_order: 80 },
-  { id: 9, name: 'Salary', parent_id: null, kind: 'income', color: null, sort_order: 90 },
-  { id: 10, name: 'Side income', parent_id: null, kind: 'income', color: null, sort_order: 100 },
-  { id: 11, name: 'Savings transfer', parent_id: null, kind: 'transfer', color: null, sort_order: 110 },
+  { id: 1, name: 'Groceries', parent_id: null, kind: 'expense', color: '#2a78d6', sort_order: 10 },
+  { id: 2, name: 'Eating out', parent_id: null, kind: 'expense', color: '#eb6834', sort_order: 20 },
+  { id: 3, name: 'Transport', parent_id: null, kind: 'expense', color: '#1baf7a', sort_order: 30 },
+  { id: 4, name: 'Utilities', parent_id: null, kind: 'expense', color: '#eda100', sort_order: 40 },
+  { id: 12, name: 'Mobile & internet', parent_id: 4, kind: 'expense', color: null, sort_order: 41 },
+  { id: 5, name: 'Rent', parent_id: null, kind: 'expense', color: '#e87ba4', sort_order: 50 },
+  { id: 6, name: 'Shopping', parent_id: null, kind: 'expense', color: '#4a3aa7', sort_order: 60 },
+  { id: 7, name: 'Health', parent_id: null, kind: 'expense', color: '#e34948', sort_order: 70 },
+  { id: 8, name: 'Leisure', parent_id: null, kind: 'expense', color: '#0e9aa7', sort_order: 80 },
+  { id: 9, name: 'Salary', parent_id: null, kind: 'income', color: '#0b8a3e', sort_order: 90 },
+  { id: 10, name: 'Side income', parent_id: null, kind: 'income', color: '#5aa469', sort_order: 100 },
+  { id: 11, name: 'Savings transfer', parent_id: null, kind: 'transfer', color: '#6c8893', sort_order: 110 },
 ];
 
 const merchants = [
@@ -22,7 +23,7 @@ const merchants = [
   { id: 3, name: 'Olive & Ember', desc: 'POS OLIVE AND EMBER 77', cat: 2, min: 25, max: 70, perMonth: 2 },
   { id: 4, name: 'Metroline Pass', desc: 'METROLINE PASS TOPUP', cat: 3, min: 20, max: 30, perMonth: 1 },
   { id: 5, name: 'Lumen Power', desc: 'DD LUMEN POWER SA', cat: 4, min: 48, max: 85, perMonth: 1 },
-  { id: 6, name: 'Nimbus Mobile', desc: 'DD NIMBUS MOBILE', cat: 4, min: 22, max: 22, perMonth: 1 },
+  { id: 6, name: 'Nimbus Mobile', desc: 'DD NIMBUS MOBILE', cat: 12, min: 22, max: 22, perMonth: 1 },
   { id: 7, name: 'Harbour Lettings', desc: 'SO HARBOUR LETTINGS RENT', cat: 5, min: 650, max: 650, perMonth: 1 },
   { id: 8, name: 'Paperleaf Books', desc: 'CARD PAPERLEAF BOOKS', cat: 6, min: 9, max: 40, perMonth: 1 },
   { id: 9, name: 'Pinecone Pharmacy', desc: 'POS PINECONE PHARMACY', cat: 7, min: 6, max: 35, perMonth: 1 },
@@ -104,6 +105,7 @@ const money = (n) => (Math.round(n * 100) / 100).toFixed(2);
 function vTransactions() {
   return txns.map((t) => {
     const c = catById(t.category_id);
+    const parent = c && c.parent_id != null ? catById(c.parent_id) : null;
     const amount = Number(t.amount);
     const signed = t.direction === 'credit' ? amount : -amount;
     return {
@@ -111,7 +113,7 @@ function vTransactions() {
       signed_amount: money(signed),
       txn_type: t.direction === 'credit' ? 'transfer_in' : 'card',
       category: c ? c.name : null,
-      parent_category: null,
+      parent_category: parent ? parent.name : null,
       kind: c ? c.kind : null,
       color: c ? c.color : null,
       expense_amount: c && c.kind === 'expense' ? money(amount) : t.direction === 'debit' && !c ? money(amount) : '0.00',
@@ -263,7 +265,65 @@ const views = {
   categories: () => categories.map((c) => ({ ...c })),
 };
 
-const functions = { fin_categorize, fin_set_category };
+// Same rules as db/005_category_editing.sql.
+function fin_save_category({ p_id = null, p_name, p_kind, p_parent_id = null, p_color = null }) {
+  const name = String(p_name || '').trim();
+  if (!name || name.length > 60) throw new Error('A name of 1 to 60 characters is required');
+  if (p_color && !/^#[0-9a-fA-F]{6}$/.test(p_color)) throw new Error('Colour must look like #1a2b3c');
+  if (categories.some((c) => c.name.toLowerCase() === name.toLowerCase() && c.id !== p_id)) throw new Error('A category with this name already exists');
+  let kind = p_kind;
+  let parent = null;
+  if (p_parent_id != null) {
+    parent = catById(p_parent_id);
+    if (!parent) throw new Error('Parent category not found');
+    if (p_parent_id === p_id) throw new Error('A category cannot be its own parent');
+    if (parent.parent_id != null) throw new Error('Subcategories cannot have subcategories of their own');
+    if (p_id != null && categories.some((c) => c.parent_id === p_id)) throw new Error('This category has subcategories, so it cannot become one');
+    kind = parent.kind;
+  }
+  if (!['expense', 'income', 'transfer'].includes(kind)) throw new Error('Kind must be expense, income or transfer');
+  if (p_id == null) {
+    const siblings = categories.filter((c) => c.parent_id === p_parent_id && (p_parent_id != null || c.kind === kind));
+    const sort = Math.max(parent ? parent.sort_order : 0, ...siblings.map((c) => c.sort_order)) + 1;
+    const id = Math.max(...categories.map((c) => c.id)) + 1;
+    categories.push({ id, name, kind, parent_id: p_parent_id, color: p_color || null, sort_order: sort });
+    return id;
+  }
+  const cat = catById(p_id);
+  if (!cat) throw new Error('Category not found');
+  Object.assign(cat, { name, kind, parent_id: p_parent_id, color: p_color || null });
+  for (const c of categories) if (c.parent_id === p_id) c.kind = kind;
+  return p_id;
+}
+
+function fin_delete_category({ p_id, p_replace_id = null }) {
+  if (!catById(p_id)) throw new Error('Category not found');
+  if (categories.some((c) => c.parent_id === p_id)) throw new Error('Move or delete its subcategories first');
+  if (p_replace_id != null && (p_replace_id === p_id || !catById(p_replace_id))) throw new Error('Choose another existing category to move its transactions to');
+  let moved = 0;
+  for (const t of txns) {
+    if (t.category_id !== p_id) continue;
+    moved += 1;
+    t.category_id = p_replace_id;
+    if (p_replace_id == null) t.category_source = null;
+  }
+  for (const m of merchants) if (m.cat === p_id) m.cat = p_replace_id;
+  categories.splice(categories.findIndex((c) => c.id === p_id), 1);
+  return moved;
+}
+
+function fin_move_category({ p_id, p_direction }) {
+  const cat = catById(p_id);
+  if (!cat) throw new Error('Category not found');
+  const siblings = categories.filter((c) => c.parent_id === cat.parent_id && c.kind === cat.kind).sort((a, b) => a.sort_order - b.sort_order || a.id - b.id);
+  const other = siblings[siblings.indexOf(cat) + (p_direction < 0 ? -1 : 1)];
+  if (!other) return null;
+  if (other.sort_order === cat.sort_order) (other.id > cat.id ? other : cat).sort_order += 1;
+  [cat.sort_order, other.sort_order] = [other.sort_order, cat.sort_order];
+  return null;
+}
+
+const functions = { fin_categorize, fin_set_category, fin_save_category, fin_delete_category, fin_move_category };
 
 const delay = () => new Promise((r) => setTimeout(r, 150 + Math.random() * 250));
 

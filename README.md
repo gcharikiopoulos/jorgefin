@@ -6,7 +6,7 @@ Screens:
 - **Overview**: headline figures with month-on-month change and sparklines, month-end balance, cash flow by month, spending by category, daily spending, top merchants and recent transactions.
 - **Transactions**: searchable, filterable list with date and time (when the source has one), type and note. Click a row for its details and to change its category.
 - **Review**: uncategorised transactions grouped by description. Click one to create a rule.
-- **Categories**: the category list with its colours.
+- **Categories**: add, edit, recolour, reorder and delete categories, with one level of subcategories. Each category's colour is used everywhere it appears; a subcategory uses its parent's colour unless it has its own.
 
 Light and dark themes follow the system setting and can be switched from the top bar.
 
@@ -48,7 +48,7 @@ If you change either value, change the Content-Security-Policy `connect-src` in 
 - **Access control** is in `db/001_access_control.sql`:
   - RLS is on for every table.
   - Signed-in users can only read, and only if their verified email is in `app_allowed_users`.
-  - Writes only go through `fin_categorize` and `fin_set_category`, which check the allow-list.
+  - Writes only go through security-definer functions that check the allow-list: `fin_categorize`, `fin_set_category`, and for categories `fin_save_category`, `fin_delete_category` and `fin_move_category`.
   - Anonymous requests get nothing.
 - To give someone access, run this in the Neon SQL Editor: `insert into public.app_allowed_users (email) values ('someone@example.com');`
 
@@ -64,6 +64,7 @@ Schema and permission changes live in `db/` as numbered SQL files, written to be
 | `db/002_email_ingest.sql` | Email staging table, ingest function, `etl_ingest` role |
 | `db/003_alert_dedup.sql` | One row per payment across card alerts, account alerts and statements |
 | `db/004_balance_posted_only.sql` | Daily balance from the latest statement balance, counting unposted alerts only after it |
+| `db/005_category_editing.sql` | Category colours, and the functions to add, edit, reorder and delete categories |
 
 ## Email import (ETL)
 

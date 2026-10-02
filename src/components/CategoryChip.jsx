@@ -1,4 +1,4 @@
-import { Box, Chip, useTheme } from '@mui/material';
+import { Box, Chip, alpha, useTheme } from '@mui/material';
 import { useCategories } from '../hooks.js';
 import { categoryColor } from '../format.js';
 
@@ -16,7 +16,7 @@ export function CategoryChip({ categoryId, name, color, size = 'small' }) {
       variant="outlined"
       label={name || 'Unknown'}
       icon={<Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: dot, ml: '8px !important' }} />}
-      sx={{ maxWidth: '100%', borderColor: 'divider' }}
+      sx={{ maxWidth: '100%', borderColor: alpha(dot, 0.45), bgcolor: alpha(dot, theme.palette.mode === 'dark' ? 0.16 : 0.08) }}
     />
   );
 }

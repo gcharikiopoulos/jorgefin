@@ -148,16 +148,27 @@ function CategoryDonut({ month }) {
     <Panel title="Spending by category" subtitle={formatMonth(month)}>
       <QueryState query={query} height={280} empty="No spending this month.">
         {(rows) => {
-          const total = rows.reduce((s, r) => s + num(r.total), 0);
-          const top = rows.slice(0, MAX_SLICES - 1);
-          const rest = rows.slice(MAX_SLICES - 1);
+          // Subcategories roll up into their parent, which carries the colour.
+          const groups = new Map();
+          for (const r of rows) {
+            const cat = categories.find((c) => c.id === r.category_id);
+            const topId = cat ? (cat.parent_id ?? cat.id) : r.category_id;
+            const top = categories.find((c) => c.id === topId);
+            const g = groups.get(topId) || { category_id: topId, label: topId == null ? 'Uncategorised' : top?.name || r.parent_category || r.category || 'Unknown', total: 0, rowColor: r.color };
+            g.total += num(r.total);
+            groups.set(topId, g);
+          }
+          const sorted = [...groups.values()].sort((a, b) => b.total - a.total);
+          const total = sorted.reduce((s, r) => s + r.total, 0);
+          const top = sorted.slice(0, MAX_SLICES - 1);
+          const rest = sorted.slice(MAX_SLICES - 1);
           const slices = top.map((r) => ({
             id: String(r.category_id ?? 'none'),
-            value: num(r.total),
-            label: r.category_id == null ? 'Uncategorised' : r.category || 'Unknown',
-            color: categoryColor(r.category_id, categories, theme.palette.mode, r.color),
+            value: r.total,
+            label: r.label,
+            color: categoryColor(r.category_id, categories, theme.palette.mode, r.rowColor),
           }));
-          if (rest.length) slices.push({ id: 'other', value: rest.reduce((s, r) => s + num(r.total), 0), label: 'Other', color: REST_COLOR });
+          if (rest.length) slices.push({ id: 'other', value: rest.reduce((s, r) => s + r.total, 0), label: 'Other', color: REST_COLOR });
           return (
             <Stack direction={{ xs: 'column', sm: 'row', md: 'column', xl: 'row' }} spacing={2} sx={{ alignItems: 'center' }}>
               <Box sx={{ position: 'relative', width: 168, height: 168, flex: 'none' }}>
@@ -238,6 +249,8 @@ function useMonthTransactions(month) {
 }
 
 function TopMerchants({ month, query }) {
+  const theme = useTheme();
+  const { data: categories = [] } = useCategories();
   return (
     <Panel title="Top merchants" subtitle={`By spending, ${formatMonth(month)}`}>
       <QueryState query={query} height={240} empty="No spending this month." isEmpty={(rows) => !rows.some((r) => num(r.expense_amount) > 0)}>
@@ -262,7 +275,7 @@ function TopMerchants({ month, query }) {
                     <Typography variant="body2" sx={{ fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{money(t.total)}</Typography>
                   </Stack>
-                  <LinearProgress variant="determinate" value={(t.total / max) * 100} sx={{ mt: 0.75, height: 6, borderRadius: 3, bgcolor: 'action.hover', '& .MuiLinearProgress-bar': { borderRadius: 3 } }} />
+                  <LinearProgress variant="determinate" value={(t.total / max) * 100} sx={{ mt: 0.75, height: 6, borderRadius: 3, bgcolor: 'action.hover', '& .MuiLinearProgress-bar': { borderRadius: 3, bgcolor: categoryColor(t.category_id, categories, theme.palette.mode, t.color) } }} />
                   <Typography variant="caption" color="text.secondary">{t.count} {t.count === 1 ? 'payment' : 'payments'}{t.category ? ` · ${t.category}` : ''}</Typography>
                 </Box>
               ))}
