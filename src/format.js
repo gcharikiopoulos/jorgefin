@@ -5,15 +5,26 @@ import { num } from './backend.js';
 const moneyFmt = new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR' });
 const signedFmt = new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', signDisplay: 'exceptZero' });
 const compactFmt = new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', notation: 'compact', maximumFractionDigits: 1 });
-const percentFmt = new Intl.NumberFormat('el-GR', { style: 'percent', maximumFractionDigits: 0 });
+const percentFmts = [0, 1].map((d) => new Intl.NumberFormat('el-GR', { style: 'percent', minimumFractionDigits: d, maximumFractionDigits: d }));
+const amountFmt = new Intl.NumberFormat('el-GR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const dateFmt = new Intl.DateTimeFormat('el-GR');
 const monthFmt = new Intl.DateTimeFormat('el-GR', { month: 'long', year: 'numeric' });
 const shortMonthFmt = new Intl.DateTimeFormat('el-GR', { month: 'short', year: '2-digit' });
+const dayMonthFmt = new Intl.DateTimeFormat('el-GR', { day: '2-digit', month: '2-digit' });
 
 export const money = (v) => moneyFmt.format(num(v));
 export const signedMoney = (v) => signedFmt.format(num(v));
 export const compactMoney = (v) => compactFmt.format(num(v));
-export const percent = (v) => percentFmt.format(num(v));
+export const percent = (v, digits = 0) => percentFmts[digits ? 1 : 0].format(num(v));
+
+// Plain figures for dense tables and readouts, where the column says it is euros.
+export const amount = (v) => amountFmt.format(num(v));
+export const signedAmount = (v) => {
+  const n = num(v);
+  return (n > 0.004 ? '+' : n < -0.004 ? '−' : '') + amountFmt.format(Math.abs(n));
+};
+// Axis labels: 0, 500, 1,5k, 2k.
+export const axisAmount = (v) => (v >= 1000 ? `${(v / 1000).toLocaleString('el-GR', { maximumFractionDigits: 1 })}k` : String(Math.round(v)));
 
 // 'YYYY-MM-DD' -> local Date (avoids the UTC shift of new Date('YYYY-MM-DD')).
 export function parseDate(ymd) {
@@ -23,6 +34,7 @@ export function parseDate(ymd) {
 export const formatDate = (ymd) => (ymd ? dateFmt.format(parseDate(ymd)) : '');
 export const formatMonth = (ymd) => (ymd ? monthFmt.format(parseDate(ymd)) : '');
 export const formatShortMonth = (ymd) => (ymd ? shortMonthFmt.format(parseDate(ymd)) : '');
+export const formatDayMonth = (ymd) => (ymd ? dayMonthFmt.format(parseDate(ymd)) : '');
 
 // Time of a transaction (timestamptz) in Athens time; '' when the source has no time.
 const timeFmt = new Intl.DateTimeFormat('el-GR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Europe/Athens' });
@@ -47,6 +59,10 @@ const SOURCES = {
   mock: 'Demo data',
 };
 export const sourceLabel = (source) => SOURCES[source] || source || '';
+
+// Four-letter source tags for dense tables.
+const SOURCE_TAGS = { card_alert: 'CARD', account_alert: 'ACCT', statement_csv: 'STMT', manual: 'MAN', mock: 'DEMO' };
+export const sourceShort = (source) => SOURCE_TAGS[source] || (source ? String(source).slice(0, 4).toUpperCase() : '');
 
 // Name to show for a transaction, plus the bank's description when it says something different.
 const plain = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();

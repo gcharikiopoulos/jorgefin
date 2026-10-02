@@ -1,95 +1,105 @@
-// Light and dark themes: React Admin's Radiant theme with a calmer finance palette.
+// Light and dark "cockpit" themes: dense type, hairline panels, monospaced figures.
+// Built on React Admin's Radiant theme; the extra colours live in palette.cockpit.
 
 import { radiantDarkTheme, radiantLightTheme } from 'react-admin';
 import { deepmerge } from '@mui/utils';
 
-const font = '"Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+export const font = '"Commissioner Variable", system-ui, -apple-system, "Segoe UI", sans-serif';
+export const mono = '"JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace';
 
-// Compact density: smaller base type, a narrower sidebar, tighter tables and inputs.
-const shared = {
-  sidebar: { width: 200, closedWidth: 56 },
-  typography: {
-    fontFamily: font,
-    fontSize: 13,
-    h4: { fontWeight: 700, letterSpacing: '-0.02em' },
-    h5: { fontWeight: 700, letterSpacing: '-0.01em' },
-    h6: { fontWeight: 650 },
-    subtitle2: { fontWeight: 600 },
+// Colours beyond MUI's palette, read by the dashboard parts as theme.palette.cockpit.
+const cockpit = {
+  dark: {
+    bg: '#08090c', panel: '#0e1115', panel2: '#13171c', line: '#1c2129', line2: '#2b323c',
+    tx: '#e6eaf0', tx2: '#a9b2be', tx3: '#8d97a5',
+    pos: '#3fd07a', neg: '#ff7d6e', warn: '#c9a25a', warnBg: 'rgba(201,162,90,0.05)',
+    hatch: 'rgba(255,255,255,0.05)', out: '#6f7a89', acc: '#4c8fe8', accText: '#8dbaf3',
   },
-  shape: { borderRadius: 14 },
-  components: {
-    MuiCard: { styleOverrides: { root: { backgroundImage: 'none' } } },
-    MuiChip: { styleOverrides: { root: { fontWeight: 500 } } },
-    // Radiant pads small cells by 10px through this selector; restate it to win.
-    MuiTableCell: { styleOverrides: { root: { '&.MuiTableCell-sizeSmall': { padding: '5px 10px' } }, head: { whiteSpace: 'nowrap' } } },
-    MuiTextField: { defaultProps: { size: 'small' } },
-    MuiFormControl: { defaultProps: { size: 'small' } },
-    MuiButton: { defaultProps: { size: 'small' } },
-    MuiIconButton: { defaultProps: { size: 'small' } },
-    MuiListItemButton: { defaultProps: { dense: true } },
-    MuiMenuItem: { defaultProps: { dense: true } },
-    MuiToolbar: { styleOverrides: { dense: { minHeight: 44 } } },
-    RaLayout: { styleOverrides: { root: { '& .RaLayout-content': { paddingInline: 12 } } } },
+  light: {
+    bg: '#e9ecf0', panel: '#ffffff', panel2: '#f6f7f9', line: '#dfe3e8', line2: '#c7cdd5',
+    tx: '#0e1116', tx2: '#3f4753', tx3: '#525b67',
+    pos: '#0a7a36', neg: '#c42f2f', warn: '#8a6420', warnBg: 'rgba(222,150,20,0.05)',
+    hatch: 'rgba(0,0,0,0.04)', out: '#9aa3ae', acc: '#2a78d6', accText: '#1c5cab',
   },
 };
 
-// Active menu item: a soft tint of the primary colour instead of Radiant's gradient.
-const menuItem = (tint, ink, headerInk) => ({
-  // Radiant bakes its purple into these; restate them with this palette.
-  RaDatagrid: { styleOverrides: { root: { '& .RaDatagrid-headerCell': { color: headerInk, fontWeight: 600 }, '& .RaDatagrid-rowCell': { lineHeight: 1.35 } } } },
-  MuiPaper: { styleOverrides: { elevation1: { boxShadow: 'none' } } },
-  RaMenuItemLink: {
-    styleOverrides: {
-      root: {
-        borderLeft: 'none',
-        borderRadius: 10,
-        marginInline: 8,
-        '&:hover': { borderRadius: 10 },
-        '&.RaMenuItemLink-active': {
-          borderLeft: 'none',
-          borderRadius: 10,
-          backgroundImage: 'none',
-          backgroundColor: tint,
-          color: ink,
-          boxShadow: 'none',
-          fontWeight: 600,
-          '& .MuiSvgIcon-root': { fill: ink },
+// Small caps label used for panel titles, column heads and readout keys.
+export const labelSx = {
+  fontFamily: mono,
+  fontSize: 9.5,
+  fontWeight: 600,
+  letterSpacing: '0.09em',
+  textTransform: 'uppercase',
+  color: 'cockpit.tx3',
+  lineHeight: 1.2,
+};
+export const monoSx = { fontFamily: mono, fontVariantNumeric: 'tabular-nums', fontFeatureSettings: '"zero" 1' };
+
+function build(base, mode) {
+  const c = cockpit[mode];
+  return deepmerge(base, {
+    sidebar: { width: 0, closedWidth: 0 },
+    palette: {
+      mode,
+      cockpit: c,
+      primary: { main: c.acc, contrastText: '#ffffff' },
+      secondary: { main: c.accText },
+      success: { main: c.pos },
+      error: { main: c.neg },
+      warning: { main: c.warn },
+      background: { default: c.bg, paper: c.panel },
+      text: { primary: c.tx, secondary: c.tx2, disabled: c.tx3 },
+      divider: c.line,
+      action: { hover: c.panel2 },
+    },
+    typography: {
+      fontFamily: font,
+      fontSize: 12,
+      htmlFontSize: 16,
+      body1: { fontSize: 12.5 },
+      body2: { fontSize: 12 },
+      caption: { fontSize: 10.5, color: c.tx3 },
+      button: { fontSize: 11.5, textTransform: 'none', fontWeight: 600 },
+      h4: { fontWeight: 700, fontSize: 22, letterSpacing: '-0.02em' },
+      h5: { fontWeight: 700, fontSize: 17, letterSpacing: '-0.01em' },
+      h6: { fontWeight: 650, fontSize: 14 },
+      subtitle1: { fontSize: 13, fontWeight: 600 },
+      subtitle2: { fontSize: 12, fontWeight: 600 },
+    },
+    shape: { borderRadius: 3 },
+    components: {
+      MuiCssBaseline: { styleOverrides: { body: { backgroundColor: c.bg, WebkitFontSmoothing: 'antialiased' } } },
+      MuiCard: { styleOverrides: { root: { backgroundImage: 'none', border: `1px solid ${c.line}`, boxShadow: 'none', borderRadius: 3 } } },
+      MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' }, elevation1: { boxShadow: 'none' } } },
+      MuiChip: { styleOverrides: { root: { fontWeight: 500, borderRadius: 2, height: 18, fontSize: 10.5 }, label: { paddingInline: 6 } } },
+      MuiTableCell: {
+        styleOverrides: {
+          root: { borderColor: c.line, '&.MuiTableCell-sizeSmall': { padding: '3px 7px' } },
+          head: { whiteSpace: 'nowrap', fontFamily: mono, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: c.tx3 },
+        },
+      },
+      MuiTextField: { defaultProps: { size: 'small' } },
+      MuiFormControl: { defaultProps: { size: 'small' } },
+      MuiInputBase: { styleOverrides: { root: { fontSize: 12 } } },
+      MuiButton: { defaultProps: { size: 'small', disableElevation: true }, styleOverrides: { root: { borderRadius: 3, minHeight: 26 } } },
+      MuiIconButton: { defaultProps: { size: 'small' } },
+      MuiListItemButton: { defaultProps: { dense: true } },
+      MuiMenuItem: { defaultProps: { dense: true }, styleOverrides: { root: { fontSize: 12 } } },
+      MuiToolbar: { styleOverrides: { dense: { minHeight: 38 }, regular: { minHeight: 38, '@media (min-width:600px)': { minHeight: 38 } } } },
+      MuiAlert: { styleOverrides: { root: { borderRadius: 3, fontSize: 12 } } },
+      RaLayout: { styleOverrides: { root: { '& .RaLayout-content': { paddingInline: 6, paddingTop: 0 }, '& .RaLayout-appFrame': { marginTop: 38 } } } },
+      RaDatagrid: {
+        styleOverrides: {
+          root: {
+            '& .RaDatagrid-headerCell': { color: c.tx3, backgroundColor: c.panel },
+            '& .RaDatagrid-rowCell': { lineHeight: 1.3 },
+            '& .RaDatagrid-row:hover': { backgroundColor: c.panel2 },
+          },
         },
       },
     },
-  },
-});
+  });
+}
 
-export const lightTheme = deepmerge(radiantLightTheme, deepmerge(shared, {
-  palette: {
-    mode: 'light',
-    primary: { main: '#2a78d6', light: '#5598e7', dark: '#1c5cab', contrastText: '#ffffff' },
-    secondary: { main: '#1c5cab' },
-    success: { main: '#0b8a3e' },
-    error: { main: '#d03b3b' },
-    background: { default: '#f6f7fb', paper: '#ffffff' },
-    text: { primary: '#14161a', secondary: '#5b616e' },
-    divider: '#e6e8ee',
-  },
-  components: {
-    ...menuItem('rgba(42,120,214,0.10)', '#1c5cab', '#5b616e'),
-    MuiCard: { styleOverrides: { root: { border: '1px solid #e6e8ee', boxShadow: '0 1px 2px rgba(16,24,40,0.04)' } } },
-  },
-}));
-
-export const darkTheme = deepmerge(radiantDarkTheme, deepmerge(shared, {
-  palette: {
-    mode: 'dark',
-    primary: { main: '#5b9cf0', light: '#86b6ef', dark: '#256abf', contrastText: '#0b1530' },
-    secondary: { main: '#86b6ef' },
-    success: { main: '#2fbf62' },
-    error: { main: '#ef6b6b' },
-    background: { default: '#0f1115', paper: '#171a20' },
-    text: { primary: '#f1f3f6', secondary: '#a3aab6' },
-    divider: '#262a33',
-  },
-  components: {
-    ...menuItem('rgba(91,156,240,0.16)', '#9ec5f4', '#a3aab6'),
-    MuiCard: { styleOverrides: { root: { border: '1px solid #262a33', boxShadow: 'none' } } },
-  },
-}));
+export const lightTheme = build(radiantLightTheme, 'light');
+export const darkTheme = build(radiantDarkTheme, 'dark');

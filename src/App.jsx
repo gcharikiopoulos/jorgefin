@@ -32,7 +32,7 @@ export function App() {
       dashboard={Dashboard}
       layout={Layout}
       loginPage={LoginPage}
-      theme={lightTheme}
+      defaultTheme="dark"
       lightTheme={lightTheme}
       darkTheme={darkTheme}
       requireAuth
