@@ -40,6 +40,8 @@ create policy allowed_read on public.merchants for select to authenticated using
 create policy allowed_read on public.account_balances for select to authenticated using ((select public.fin_is_allowed()));
 create policy allowed_read on public.budgets for select to authenticated using ((select public.fin_is_allowed()));
 
+-- The Data API loads the session through the auth schema on every request.
+grant usage on schema auth to authenticated;
 grant usage on schema public to authenticated;
 revoke all on all tables in schema public from anonymous, authenticated;
 grant select on public.transactions, public.categories, public.merchants, public.account_balances, public.budgets to authenticated;

@@ -3,7 +3,7 @@
 // Requests to the Neon Data API and Auth hosts (any other origin) are never
 // intercepted, so they always go to the network.
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `finance-shell-${CACHE_VERSION}`;
 
 const SHELL = [

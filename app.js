@@ -214,7 +214,10 @@ async function boot() {
     state.monthIndex = 0; // latest month with data, not the calendar month
     state.categories = categories;
   } catch (err) {
-    if (err instanceof api.AuthError) return showDenied(state.user);
+    if (err instanceof api.AuthError) {
+      console.error('Data API refused the request', err.details || err);
+      return showDenied(state.user);
+    }
     console.error(err);
     if (!navigator.onLine) return showOfflineShell();
     showScreen('app');
