@@ -24,6 +24,38 @@ export const formatDate = (ymd) => (ymd ? dateFmt.format(parseDate(ymd)) : '');
 export const formatMonth = (ymd) => (ymd ? monthFmt.format(parseDate(ymd)) : '');
 export const formatShortMonth = (ymd) => (ymd ? shortMonthFmt.format(parseDate(ymd)) : '');
 
+// Time of a transaction (timestamptz) in Athens time; '' when the source has no time.
+const timeFmt = new Intl.DateTimeFormat('el-GR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Europe/Athens' });
+export const formatTime = (ts) => (ts ? timeFmt.format(new Date(ts)) : '');
+
+const TXN_TYPES = {
+  card_purchase: 'Card purchase',
+  card_refund: 'Card refund',
+  atm_withdrawal: 'Cash withdrawal',
+  transfer: 'Transfer',
+  payment: 'Payment',
+  card: 'Card purchase',
+  transfer_in: 'Transfer',
+};
+export const txnTypeLabel = (type) => TXN_TYPES[type] || '';
+
+const SOURCES = {
+  statement_csv: 'Bank statement',
+  account_alert: 'Account alert email',
+  card_alert: 'Card alert email',
+  manual: 'Entered by hand',
+  mock: 'Demo data',
+};
+export const sourceLabel = (source) => SOURCES[source] || source || '';
+
+// Name to show for a transaction, plus the bank's description when it says something different.
+const plain = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
+export const sameText = (a, b) => plain(a) === plain(b);
+export function txnName(t) {
+  const name = t.merchant_name || t.description || '';
+  return { name, detail: t.description && !sameText(name, t.description) ? t.description : '' };
+}
+
 // Validated categorical palette (8 slots, fixed order) for light and dark surfaces.
 const SERIES = {
   light: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'],

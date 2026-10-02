@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography, useMediaQuery } from '@mui/material';
 import { useDataProvider, useNotify, useRefresh } from 'react-admin';
 import { CategorySelect } from './CategorySelect.jsx';
-import { formatDate, signedMoney } from '../format.js';
+import { formatDate, formatTime, signedMoney, sourceLabel, txnName, txnTypeLabel } from '../format.js';
 import { useRefreshAfterWrite } from '../hooks.js';
 
 // Manual override for one transaction, through fin_set_category.
@@ -24,6 +24,16 @@ export function SetCategoryDialog({ transaction, onClose }) {
   }, [transaction]);
 
   if (!transaction) return null;
+  const { name, detail } = txnName(transaction);
+  const t = transaction;
+  const facts = [
+    ['Date', [formatDate(t.txn_date), formatTime(t.txn_at)].filter(Boolean).join(' ')],
+    t.posting_date && t.posting_date !== t.txn_date && ['Posted', formatDate(t.posting_date)],
+    t.value_date && t.value_date !== t.txn_date && ['Value date', formatDate(t.value_date)],
+    txnTypeLabel(t.txn_type) && ['Type', txnTypeLabel(t.txn_type)],
+    t.source && ['Source', sourceLabel(t.source)],
+    t.category_source && ['Category set by', t.category_source === 'rule' ? 'Rule' : 'You'],
+  ].filter(Boolean);
 
   const save = async (event) => {
     event.preventDefault();
@@ -50,9 +60,16 @@ export function SetCategoryDialog({ transaction, onClose }) {
       <DialogContent>
         <Stack spacing={2.5} sx={{ pt: 1 }}>
           <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: 'action.hover' }}>
-            <Typography sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{transaction.merchant_name || transaction.description}</Typography>
-            {transaction.merchant_name && <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{transaction.description}</Typography>}
-            <Typography variant="body2" color="text.secondary">{formatDate(transaction.txn_date)} · {signedMoney(transaction.signed_amount)}</Typography>
+            <Stack direction="row" spacing={1} sx={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <Typography sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{name}</Typography>
+              <Typography sx={{ fontWeight: 600, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{signedMoney(transaction.signed_amount)}</Typography>
+            </Stack>
+            {detail && <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{detail}</Typography>}
+            <Box component="dl" sx={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 2, rowGap: 0.25, m: 0, mt: 1, fontSize: 13, '& dt': { color: 'text.secondary' }, '& dd': { m: 0 } }}>
+              {facts.map(([label, value]) => (
+                <Fragment key={label}><dt>{label}</dt><dd>{value}</dd></Fragment>
+              ))}
+            </Box>
           </Box>
           <CategorySelect value={categoryId} onChange={setCategoryId} autoFocus />
           <TextField label="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }} fullWidth />

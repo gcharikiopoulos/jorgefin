@@ -5,9 +5,12 @@ import { deepmerge } from '@mui/utils';
 
 const font = '"Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
+// Compact density: smaller base type, a narrower sidebar, tighter tables and inputs.
 const shared = {
+  sidebar: { width: 200, closedWidth: 56 },
   typography: {
     fontFamily: font,
+    fontSize: 13,
     h4: { fontWeight: 700, letterSpacing: '-0.02em' },
     h5: { fontWeight: 700, letterSpacing: '-0.01em' },
     h6: { fontWeight: 650 },
@@ -17,13 +20,23 @@ const shared = {
   components: {
     MuiCard: { styleOverrides: { root: { backgroundImage: 'none' } } },
     MuiChip: { styleOverrides: { root: { fontWeight: 500 } } },
+    // Radiant pads small cells by 10px through this selector; restate it to win.
+    MuiTableCell: { styleOverrides: { root: { '&.MuiTableCell-sizeSmall': { padding: '5px 10px' } }, head: { whiteSpace: 'nowrap' } } },
+    MuiTextField: { defaultProps: { size: 'small' } },
+    MuiFormControl: { defaultProps: { size: 'small' } },
+    MuiButton: { defaultProps: { size: 'small' } },
+    MuiIconButton: { defaultProps: { size: 'small' } },
+    MuiListItemButton: { defaultProps: { dense: true } },
+    MuiMenuItem: { defaultProps: { dense: true } },
+    MuiToolbar: { styleOverrides: { dense: { minHeight: 44 } } },
+    RaLayout: { styleOverrides: { root: { '& .RaLayout-content': { paddingInline: 12 } } } },
   },
 };
 
 // Active menu item: a soft tint of the primary colour instead of Radiant's gradient.
 const menuItem = (tint, ink, headerInk) => ({
   // Radiant bakes its purple into these; restate them with this palette.
-  RaDatagrid: { styleOverrides: { root: { '& .RaDatagrid-headerCell': { color: headerInk, fontWeight: 600 } } } },
+  RaDatagrid: { styleOverrides: { root: { '& .RaDatagrid-headerCell': { color: headerInk, fontWeight: 600 }, '& .RaDatagrid-rowCell': { lineHeight: 1.35 } } } },
   MuiPaper: { styleOverrides: { elevation1: { boxShadow: 'none' } } },
   RaMenuItemLink: {
     styleOverrides: {

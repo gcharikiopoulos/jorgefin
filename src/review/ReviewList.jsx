@@ -3,7 +3,7 @@ import { Box, Typography, useMediaQuery } from '@mui/material';
 import { Datagrid, FunctionField, List, NumberField, SimpleList, useListContext } from 'react-admin';
 import { Amount } from '../components/Amount.jsx';
 import { CategorizeDialog } from '../components/CategorizeDialog.jsx';
-import { formatDate } from '../format.js';
+import { formatDate, sameText } from '../format.js';
 import { num } from '../backend.js';
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -34,11 +34,11 @@ function Rows({ onSelect }) {
     );
   }
   return (
-    <Datagrid bulkActionButtons={false} rowClick={(id, _resource, record) => { onSelect(record); return false; }}>
+    <Datagrid size="small" bulkActionButtons={false} rowClick={(id, _resource, record) => { onSelect(record); return false; }}>
       <FunctionField label="Description" sortBy="sample_description" render={(r) => (
         <Box>
           <Typography variant="body2" sx={{ fontWeight: 600 }}>{r.sample_description}</Typography>
-          <Typography variant="caption" color="text.secondary">{r.description_norm}</Typography>
+          {!sameText(r.sample_description, r.description_norm) && <Typography variant="caption" color="text.secondary">{r.description_norm}</Typography>}
         </Box>
       )} />
       <NumberField source="txn_count" label="Transactions" />
@@ -52,7 +52,7 @@ export function ReviewList() {
   const [selected, setSelected] = useState(null);
   return (
     <>
-      <List title="Review" sort={{ field: 'txn_count', order: 'DESC' }} perPage={50} exporter={false} empty={<Empty />} pagination={false}>
+      <List title="Review" sx={{ maxWidth: 1200 }} sort={{ field: 'txn_count', order: 'DESC' }} perPage={50} exporter={false} empty={<Empty />} pagination={false}>
         <Rows onSelect={setSelected} />
       </List>
       <CategorizeDialog item={selected} onClose={() => setSelected(null)} />

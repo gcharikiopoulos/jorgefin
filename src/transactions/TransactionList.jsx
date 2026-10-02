@@ -1,11 +1,26 @@
 import { useState } from 'react';
 import { Box, Stack, Typography, useMediaQuery } from '@mui/material';
-import { Datagrid, FunctionField, List, Loading, SearchInput, SelectInput, SimpleList, TextField, useListContext } from 'react-admin';
+import { Datagrid, FunctionField, List, Loading, SearchInput, SelectInput, SimpleList, useListContext } from 'react-admin';
 import { CategoryChip } from '../components/CategoryChip.jsx';
 import { Amount } from '../components/Amount.jsx';
 import { SetCategoryDialog } from '../components/SetCategoryDialog.jsx';
-import { formatDate, formatMonth } from '../format.js';
+import { formatDate, formatMonth, formatTime, txnName, txnTypeLabel } from '../format.js';
 import { useCategories, useMonths } from '../hooks.js';
+
+const ellipsis = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+
+// Second line under the name: the bank's own description when it differs, the type and the note.
+const details = (r) => [txnName(r).detail, txnTypeLabel(r.txn_type), r.note].filter(Boolean).join(' · ');
+
+function DateCell({ record }) {
+  const time = formatTime(record.txn_at);
+  return (
+    <Box sx={{ whiteSpace: 'nowrap' }}>
+      <Typography variant="body2">{formatDate(record.txn_date)}</Typography>
+      {time && <Typography variant="caption" color="text.secondary">{time}</Typography>}
+    </Box>
+  );
+}
 
 function Rows({ onSelect }) {
   const isSmall = useMediaQuery((t) => t.breakpoints.down('md'));
@@ -13,10 +28,10 @@ function Rows({ onSelect }) {
   if (isSmall) {
     return (
       <SimpleList
-        primaryText={(r) => r.merchant_name || r.description}
+        primaryText={(r) => txnName(r).name}
         secondaryText={(r) => (
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.5 }} component="span">
-            <span>{formatDate(r.txn_date)}</span>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mt: 0.25 }} component="span">
+            <span>{[formatDate(r.txn_date), formatTime(r.txn_at)].filter(Boolean).join(' ')}</span>
             <CategoryChip categoryId={r.category_id} name={r.category} color={r.color} />
           </Stack>
         )}
@@ -27,17 +42,20 @@ function Rows({ onSelect }) {
     );
   }
   return (
-    <Datagrid bulkActionButtons={false} rowClick={(id, _resource, record) => { onSelect(record); return false; }} sx={{ '& .RaDatagrid-headerCell': { fontWeight: 600 } }}>
-      <FunctionField label="Date" sortBy="txn_date" render={(r) => formatDate(r.txn_date)} />
-      <FunctionField label="Merchant" sortBy="merchant_name" render={(r) => (
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>{r.merchant_name || r.description}</Typography>
-          {r.merchant_name && <Typography variant="caption" color="text.secondary">{r.description}</Typography>}
-        </Box>
-      )} />
-      <FunctionField label="Category" sortBy="category" render={(r) => <CategoryChip categoryId={r.category_id} name={r.category} color={r.color} />} />
-      <TextField source="note" label="Note" sortable={false} emptyText="" />
-      <FunctionField label="Amount" sortBy="signed_amount" textAlign="right" render={(r) => <Amount value={r.signed_amount} credit={r.direction === 'credit'} />} />
+    <Datagrid size="small" bulkActionButtons={false} rowClick={(id, _resource, record) => { onSelect(record); return false; }}
+      sx={{ '& .RaDatagrid-table': { tableLayout: 'fixed' }, '& .column-date': { width: 104 }, '& .column-category': { width: 180 }, '& .column-signed_amount': { width: 120 } }}>
+      <FunctionField source="date" label="Date" sortBy="txn_date" render={(r) => <DateCell record={r} />} />
+      <FunctionField source="merchant_name" label="Description" sortBy="merchant_name" render={(r) => {
+        const extra = details(r);
+        return (
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, ...ellipsis }} title={txnName(r).name}>{txnName(r).name}</Typography>
+            {extra && <Typography variant="caption" color="text.secondary" component="div" sx={ellipsis} title={extra}>{extra}</Typography>}
+          </Box>
+        );
+      }} />
+      <FunctionField source="category" label="Category" sortBy="category" render={(r) => <CategoryChip categoryId={r.category_id} name={r.category} color={r.color} />} />
+      <FunctionField source="signed_amount" label="Amount" sortBy="signed_amount" textAlign="right" render={(r) => <Amount value={r.signed_amount} credit={r.direction === 'credit'} />} />
     </Datagrid>
   );
 }
@@ -51,15 +69,16 @@ export function TransactionList() {
   const monthChoices = (months || []).map((m) => ({ id: m.month, name: formatMonth(m.month) }));
   const categoryChoices = [{ id: 'none', name: 'Uncategorised' }, ...categories.map((c) => ({ id: c.id, name: c.name }))];
   const filters = [
-    <SearchInput key="q" source="q" alwaysOn placeholder="Search merchant or description" />,
-    <SelectInput key="month" source="month" label="Month" choices={monthChoices} alwaysOn emptyText="All months" />,
-    <SelectInput key="cat" source="category_id" label="Category" choices={categoryChoices} alwaysOn emptyText="All categories" />,
+    <SearchInput key="q" source="q" size="small" alwaysOn placeholder="Search merchant or description" />,
+    <SelectInput key="month" source="month" size="small" label="Month" choices={monthChoices} alwaysOn emptyText="All months" />,
+    <SelectInput key="cat" source="category_id" size="small" label="Category" choices={categoryChoices} alwaysOn emptyText="All categories" />,
   ];
 
   return (
     <>
       <List
         title="Transactions"
+        sx={{ maxWidth: 1200 }}
         filters={filters}
         filterDefaultValues={monthChoices[0] ? { month: monthChoices[0].id } : {}}
         sort={{ field: 'txn_date', order: 'DESC' }}
