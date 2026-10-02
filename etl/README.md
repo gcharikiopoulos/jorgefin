@@ -58,7 +58,7 @@ A debit-card purchase triggers both alerts within seconds, and the same payment 
    | --- | --- |
    | `NEON_CONNECTION_STRING` | `postgresql://etl_ingest:<password>@ep-billowing-hall-b295ail3.c-6.eu-central-1.aws.neon.tech/neondb?sslmode=require` |
    | `ALERT_SENDERS` | `alerts@alpha.gr,ebanking@alpha.gr` |
-   | `GMAIL_LABEL` | `Banks` (optional: only search under this label) |
+   | `GMAIL_LABEL` | `03.Banks` (optional: only search under this label) |
    | `BACKFILL_DAYS` | optional, how far back the first run looks; default `30`. Set it to `400` once to import older alerts. |
 
 4. **Check.** Run `testConnection()`; the log should say `Connected as etl_ingest`. Then run `dryRun()` and compare the logged transactions with the emails. It writes and labels nothing.
