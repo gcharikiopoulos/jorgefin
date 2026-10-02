@@ -2,7 +2,7 @@
 // for every transaction with the same description) and that description's history.
 
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Checkbox, FormControlLabel, IconButton, Stack, TextField } from '@mui/material';
+import { Alert, Box, Button, IconButton, Stack, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useDataProvider, useNotify, useRefresh } from 'react-admin';
 import CloseIcon from '@mui/icons-material/Close';
@@ -12,7 +12,8 @@ import { CategorySelect } from '../components/CategorySelect.jsx';
 import { CategoryTag } from '../components/CategoryTag.jsx';
 import { useIdentical } from '../components/SetCategoryDialog.jsx';
 import { Kbd, Label, Mono } from '../dashboard/parts.jsx';
-import { amount, formatDate, formatShortMonth, formatTime, parseDate, signedAmount, sourceLabel, txnName, txnTypeLabel } from '../format.js';
+import { amount, formatDate, formatShortMonth, formatTime, normalizeText, parseDate, signedAmount, sourceLabel, suggestPrefix, txnName, txnTypeLabel } from '../format.js';
+import { MIN_PREFIX, PrefixField, Segments } from '../components/PrefixField.jsx';
 import { useRefreshAfterWrite } from '../hooks.js';
 import { num } from '../backend.js';
 
@@ -75,14 +76,16 @@ export function Inspector({ transaction: t, onClose, onPrev, onNext }) {
   const identical = useIdentical(t);
   const [categoryId, setCategoryId] = useState(null);
   const [note, setNote] = useState('');
-  const [applyAll, setApplyAll] = useState(false);
+  const [scope, setScope] = useState('one'); // one | same | prefix
+  const [prefix, setPrefix] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     setCategoryId(t?.category_id ?? null);
     setNote(t?.note ?? '');
-    setApplyAll(false);
+    setScope('one');
+    setPrefix(suggestPrefix(t?.description_norm));
     setError('');
   }, [t]);
 
@@ -97,13 +100,18 @@ export function Inspector({ transaction: t, onClose, onPrev, onNext }) {
   const save = async (event) => {
     event.preventDefault();
     if (!categoryId) return setError('Choose a category.');
+    const prefixNorm = normalizeText(prefix);
+    if (scope === 'prefix' && prefixNorm.length < MIN_PREFIX) return setError(`The pattern needs at least ${MIN_PREFIX} characters.`);
     setSaving(true);
     setError('');
     try {
       await dataProvider.setCategory({ txnId: t.id, categoryId, note: note.trim() || null });
-      if (applyAll && others > 0) {
+      if (scope === 'same' && others > 0) {
         const updated = await dataProvider.categorize({ pattern: t.description_norm, categoryId, matchType: 'exact' });
         notify(`Category set on this and ${updated} other ${updated === 1 ? 'transaction' : 'transactions'}`, { type: 'success' });
+      } else if (scope === 'prefix') {
+        const updated = await dataProvider.categorize({ pattern: prefixNorm, categoryId, matchType: 'prefix' });
+        notify(`Category set on this and ${updated} other ${updated === 1 ? 'transaction' : 'transactions'} starting with "${prefixNorm}"; future ones follow`, { type: 'success' });
       } else {
         notify('Category updated', { type: 'success' });
       }
@@ -158,19 +166,20 @@ export function Inspector({ transaction: t, onClose, onPrev, onNext }) {
           </Stack>
           <CategorySelect id="inspector-category" value={categoryId} onChange={setCategoryId} />
           <TextField label="Note" value={note} onChange={(e) => setNote(e.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }} fullWidth />
-          {others > 0 && (
-            <Box>
-              <FormControlLabel
-                control={<Checkbox size="small" checked={applyAll} onChange={(e) => setApplyAll(e.target.checked)} />}
-                label={<Box component="span" sx={{ fontSize: 13 }}>Also the {others} other {others === 1 ? 'one' : 'ones'} with this description, and future ones</Box>}
-                sx={{ alignItems: 'flex-start', ml: -0.5, '& .MuiCheckbox-root': { p: { xs: 1, md: 0.5 }, mr: 0.5 } }}
-              />
-              {applyAll && manualOthers > 0 && <Mono component="div" sx={{ fontSize: 11, color: 'cockpit.tx3', pl: 3 }}>{manualOthers} set by hand keep their category.</Mono>}
-            </Box>
-          )}
+          <Box>
+            <Label component="div" sx={{ fontSize: 10.5, mb: 0.5 }}>Apply to</Label>
+            <Segments fullWidth label="Apply to" value={scope} onChange={setScope}
+              options={[['one', 'THIS ONE'], ...(others > 0 ? [['same', `SAME · ${others + 1}`]] : []), ['prefix', 'STARTS WITH']]} />
+            {scope === 'same' && (
+              <Mono component="div" sx={{ fontSize: 11, color: 'cockpit.tx3', mt: 0.75 }}>
+                Every transaction with exactly this description, now and in future imports.{manualOthers > 0 ? ` ${manualOthers} set by hand keep their category.` : ''}
+              </Mono>
+            )}
+          </Box>
+          {scope === 'prefix' && <PrefixField value={prefix} onChange={setPrefix} description={t.description_norm} />}
           {error && <Alert severity="error" sx={{ py: 0 }}>{error}</Alert>}
           <Button type="submit" variant="contained" disabled={saving} fullWidth>
-            {applyAll && others ? `Save + apply to ${others}` : 'Save'}
+            {scope === 'same' && others ? `Save + apply to ${others}` : scope === 'prefix' ? 'Save + create rule' : 'Save'}
           </Button>
         </Box>
 

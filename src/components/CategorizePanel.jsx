@@ -4,10 +4,9 @@ import { useDataProvider, useNotify } from 'react-admin';
 import { CategorySelect } from './CategorySelect.jsx';
 import { PanelHeader, PanelTransactions } from './SidePanel.jsx';
 import { Kbd, Label, Mono } from '../dashboard/parts.jsx';
-import { signedAmount } from '../format.js';
-import { monoSx } from '../theme.js';
+import { normalizeText, signedAmount, suggestPrefix } from '../format.js';
+import { MIN_PREFIX, PrefixField, Segments, useDebounced } from './PrefixField.jsx';
 import { useRefreshAfterWrite } from '../hooks.js';
-import { CONTROL } from './dense.js';
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -20,24 +19,32 @@ export function CategorizePanel({ item, onClose, onSaved }) {
   const [categoryId, setCategoryId] = useState(null);
   const [merchantName, setMerchantName] = useState('');
   const [matchType, setMatchType] = useState('exact');
+  const [prefix, setPrefix] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // Descriptions that end in a reference code (SPOTIFY P36DD67B53) start on
+  // "starts with" the leading words, so one rule catches every month's charge.
   useEffect(() => {
+    const suggestion = suggestPrefix(item.description_norm);
     setCategoryId(null);
     setMerchantName('');
-    setMatchType('exact');
+    setPrefix(suggestion);
+    setMatchType(suggestion.length >= MIN_PREFIX && suggestion !== normalizeText(item.description_norm) ? 'prefix' : 'exact');
     setError('');
   }, [item]);
+  const prefixNorm = normalizeText(prefix);
+  const previewPrefix = normalizeText(useDebounced(prefix));
 
   const save = async (event) => {
     event.preventDefault();
     if (!categoryId) return setError('Choose a category.');
+    if (matchType === 'prefix' && prefixNorm.length < MIN_PREFIX) return setError(`The pattern needs at least ${MIN_PREFIX} characters.`);
     setSaving(true);
     setError('');
     try {
       const updated = await dataProvider.categorize({
-        pattern: item.description_norm,
+        pattern: matchType === 'prefix' ? prefixNorm : item.description_norm,
         categoryId,
         merchantName: merchantName.trim() || null,
         matchType,
@@ -55,7 +62,7 @@ export function CategorizePanel({ item, onClose, onSaved }) {
 
   // The rule matches on the description only (either direction) and leaves
   // transactions categorised by hand alone.
-  const filter = matchType === 'prefix' ? { description_prefix: item.description_norm } : { description_norm: item.description_norm };
+  const filter = matchType === 'prefix' ? { description_prefix: previewPrefix.length >= MIN_PREFIX ? previewPrefix : item.description_norm } : { description_norm: item.description_norm };
 
   return (
     <>
@@ -75,29 +82,26 @@ export function CategorizePanel({ item, onClose, onSaved }) {
             <Label sx={{ color: 'cockpit.tx' }}>Categorise</Label>
             <Kbd>C</Kbd>
           </Stack>
-          <Box>
-            <Label sx={{ fontSize: 10.5 }}>Pattern</Label>
-            <Mono component="div" sx={{ fontSize: 12, color: 'cockpit.tx', overflowWrap: 'anywhere', mt: 0.25 }}>{item.description_norm}{matchType === 'prefix' ? '…' : ''}</Mono>
-          </Box>
-          <CategorySelect id="review-category" value={categoryId} onChange={setCategoryId} />
-          <TextField label="Merchant name (optional)" placeholder="e.g. Corner shop" value={merchantName} onChange={(e) => setMerchantName(e.target.value)} slotProps={{ htmlInput: { maxLength: 80 } }} fullWidth />
           <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
             <Label sx={{ fontSize: 10.5 }}>Match</Label>
-            <Box role="group" aria-label="Match" sx={{ display: 'inline-flex', border: 1, borderColor: 'cockpit.line2', borderRadius: '3px', overflow: 'hidden', height: CONTROL }}>
-              {[['exact', 'EXACT'], ['prefix', 'STARTS WITH']].map(([v, text], i) => (
-                <Box key={v} component="button" type="button" aria-pressed={matchType === v} onClick={() => setMatchType(v)}
-                  sx={{ ...monoSx, border: 0, borderLeft: i ? 1 : 0, borderColor: 'cockpit.line2', px: 1.5, fontSize: 12, fontWeight: 600, cursor: 'pointer', bgcolor: matchType === v ? 'primary.main' : 'cockpit.panel', color: matchType === v ? '#fff' : 'cockpit.tx2' }}>
-                  {text}
-                </Box>
-              ))}
-            </Box>
+            <Segments label="Match" value={matchType} onChange={setMatchType} options={[['exact', 'EXACT TEXT'], ['prefix', 'STARTS WITH']]} />
           </Stack>
+          {matchType === 'prefix'
+            ? <PrefixField value={prefix} onChange={setPrefix} description={item.description_norm} />
+            : (
+              <Box>
+                <Label sx={{ fontSize: 10.5 }}>Pattern</Label>
+                <Mono component="div" sx={{ fontSize: 12, color: 'cockpit.tx', overflowWrap: 'anywhere', mt: 0.25 }}>{item.description_norm}</Mono>
+              </Box>
+            )}
+          <CategorySelect id="review-category" value={categoryId} onChange={setCategoryId} />
+          <TextField label="Merchant name (optional)" placeholder="e.g. Corner shop" value={merchantName} onChange={(e) => setMerchantName(e.target.value)} slotProps={{ htmlInput: { maxLength: 80 } }} fullWidth />
           {error && <Alert severity="error" sx={{ py: 0 }}>{error}</Alert>}
           <Button type="submit" variant="contained" disabled={saving} fullWidth>Apply rule</Button>
         </Stack>
       </Box>
       <PanelTransactions
-        key={`${item.id}|${matchType}`}
+        key={`${item.id}|${matchType}|${previewPrefix}`}
         title="This rule applies to"
         filter={filter}
         note={(r) => (r.category_source === 'manual' ? 'set by hand · keeps its category' : '')}
