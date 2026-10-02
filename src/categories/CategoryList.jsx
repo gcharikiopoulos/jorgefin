@@ -5,6 +5,8 @@ import {
 } from '@mui/material';
 import { Title, useDataProvider, useNotify } from 'react-admin';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { PanelHeader, PanelTransactions, SplitLayout } from '../components/SidePanel.jsx';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/EditOutlined';
 import DeleteIcon from '@mui/icons-material/DeleteOutlined';
@@ -217,21 +219,26 @@ function DeleteDialog({ category, usage, onClose }) {
   );
 }
 
-function CategoryRow({ category, child, first, last, usage, onEdit, onAddChild, onDelete, onMove, busy }) {
+function CategoryRow({ category, child, first, last, usage, onEdit, onAddChild, onDelete, onMove, onOpen, selected, busy }) {
   const theme = useTheme();
   const { data: categories = [] } = useCategories();
   const color = categoryColor(category.id, categories, theme.palette.mode);
-  const count = usage?.get(category.id);
+  // A parent's count includes its subcategories, like the list it opens.
+  const ids = [category.id, ...categories.filter((c) => c.parent_id === category.id).map((c) => c.id)];
+  const count = ids.reduce((s, id) => s + (usage?.get(id) || 0), 0);
   return (
-    <Stack direction="row" sx={{ alignItems: 'center', gap: 1, py: 0.75, pl: child ? 4.5 : 1.5, pr: 1, borderTop: 1, borderColor: 'divider', '&:hover .row-actions': { opacity: 1 } }}>
+    <Stack direction="row" sx={{ alignItems: 'center', gap: 1, py: 0.5, pl: child ? 4.5 : 1.5, pr: 1, borderTop: 1, borderColor: 'divider', bgcolor: selected ? 'action.selected' : undefined, '&:hover .row-actions': { opacity: 1 } }}>
       {child && <SubdirectoryIcon sx={{ fontSize: 16, color: 'text.disabled', ml: -3, mr: 0.5 }} />}
       <Box sx={{ width: child ? 10 : 14, height: child ? 10 : 14, borderRadius: child ? '50%' : '4px', bgcolor: color, flex: 'none', opacity: child && !category.color ? 0.7 : 1 }} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography variant="body2" sx={{ fontWeight: child ? 400 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{category.name}</Typography>
       </Box>
-      <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', mr: 0.5 }}>
-        {count ? `${count} txn${count === 1 ? '' : 's'}` : ''}
-      </Typography>
+      {count > 0 && (
+        <Button size="small" variant="text" onClick={() => onOpen(category)} aria-pressed={selected} title={ids.length > 1 ? 'Including subcategories' : undefined}
+          sx={{ minWidth: 0, px: 1, whiteSpace: 'nowrap', fontWeight: 500, fontSize: 12, color: selected ? 'primary.main' : 'text.secondary' }}>
+          {count} {count === 1 ? 'txn' : 'txns'}
+        </Button>
+      )}
       <Stack direction="row" className="row-actions" sx={{ opacity: { xs: 1, md: 0.55 }, transition: 'opacity .15s' }}>
         <Tooltip title="Move up"><span><IconButton aria-label={`Move ${category.name} up`} disabled={first || busy} onClick={() => onMove(category, -1)}><UpIcon fontSize="small" /></IconButton></span></Tooltip>
         <Tooltip title="Move down"><span><IconButton aria-label={`Move ${category.name} down`} disabled={last || busy} onClick={() => onMove(category, 1)}><DownIcon fontSize="small" /></IconButton></span></Tooltip>
@@ -240,6 +247,25 @@ function CategoryRow({ category, child, first, last, usage, onEdit, onAddChild, 
         <Tooltip title="Delete"><IconButton aria-label={`Delete ${category.name}`} onClick={() => onDelete(category)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
       </Stack>
     </Stack>
+  );
+}
+
+function CategoryPanel({ category, onClose }) {
+  const theme = useTheme();
+  const navigate = useNavigate();
+  const { data: categories = [] } = useCategories();
+  const children = categories.filter((c) => c.parent_id === category.id);
+  return (
+    <>
+      <PanelHeader
+        title={category.name}
+        subtitle={children.length ? `Including ${children.map((c) => c.name).join(', ')}` : KIND_NAMES[category.kind]}
+        icon={<CategoryDot color={categoryColor(category.id, categories, theme.palette.mode)} size={12} />}
+        onClose={onClose}
+        action={<Button size="small" onClick={() => navigate(`/transactions?filter=${encodeURIComponent(JSON.stringify({ category_id: category.id }))}`)}>Open list</Button>}
+      />
+      <PanelTransactions key={category.id} filter={{ category_id: category.id }} showCategory={children.length > 0} />
+    </>
   );
 }
 
@@ -267,11 +293,14 @@ export function CategoryList() {
     }
   };
 
-  const rowProps = { usage, busy, onMove: move, onEdit: (c) => setEditing({ ...c }), onDelete: setDeleting, onAddChild: (p) => setEditing({ name: '', kind: p.kind, parent_id: p.id, color: null }) };
+  const [openId, setOpenId] = useState(null);
+  const open = categories.find((c) => c.id === openId) || null;
+  const rowProps = { usage, busy, onMove: move, onOpen: (c) => setOpenId((id) => (id === c.id ? null : c.id)), onEdit: (c) => setEditing({ ...c }), onDelete: setDeleting, onAddChild: (p) => setEditing({ name: '', kind: p.kind, parent_id: p.id, color: null }) };
 
   return (
-    <Box sx={{ maxWidth: 760, pt: 1, pb: 3 }}>
+    <Box sx={{ pt: 1, pb: 3 }}>
       <Title title="Categories" />
+      <SplitLayout panel={open && <CategoryPanel category={open} onClose={() => setOpenId(null)} />} onClose={() => setOpenId(null)}>
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
         <Typography variant="h5" component="h1">Categories</Typography>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setEditing({ name: '', kind: 'expense', parent_id: null, color: CATEGORY_SWATCHES[categories.length % 12] })}>Add category</Button>
@@ -287,9 +316,9 @@ export function CategoryList() {
               <Typography variant="subtitle2" sx={{ px: 1.5, py: 1, color: 'text.secondary' }}>{title}</Typography>
               {tree.map((parent, i) => (
                 <Box key={parent.id}>
-                  <CategoryRow category={parent} first={i === 0} last={i === tree.length - 1} {...rowProps} />
+                  <CategoryRow category={parent} first={i === 0} last={i === tree.length - 1} selected={openId === parent.id} {...rowProps} />
                   {parent.children.map((child, j) => (
-                    <CategoryRow key={child.id} category={child} child first={j === 0} last={j === parent.children.length - 1} {...rowProps} />
+                    <CategoryRow key={child.id} category={child} child first={j === 0} last={j === parent.children.length - 1} selected={openId === child.id} {...rowProps} />
                   ))}
                 </Box>
               ))}
@@ -297,6 +326,7 @@ export function CategoryList() {
           );
         })}
       </Stack>
+      </SplitLayout>
       {editing && <CategoryDialog draft={editing} onClose={() => setEditing(null)} />}
       {deleting && <DeleteDialog category={deleting} usage={usage} onClose={() => setDeleting(null)} />}
     </Box>

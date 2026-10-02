@@ -5,8 +5,8 @@ An installable finance dashboard (PWA) for a household finance tracker, built wi
 Screens:
 - **Overview**: headline figures with month-on-month change and sparklines, month-end balance, cash flow by month, spending by category, daily spending, top merchants and recent transactions.
 - **Transactions**: searchable, filterable list with date and time (when the source has one), type and note. Click a row for its details and to change its category.
-- **Review**: uncategorised transactions grouped by description. Click one to create a rule.
-- **Categories**: add, edit, recolour, reorder and delete categories, with one level of subcategories. Each category's colour is used everywhere it appears; a subcategory uses its parent's colour unless it has its own.
+- **Review**: uncategorised transactions grouped by description. Click one to open a side panel: create a rule at the top, and see the transactions it applies to below.
+- **Categories**: add, edit, recolour, reorder and delete categories, with one level of subcategories. Each category's colour is used everywhere it appears; a subcategory uses its parent's colour unless it has its own. Click a category's transaction count to list its transactions in a side panel.
 
 Light and dark themes follow the system setting and can be switched from the top bar.
 

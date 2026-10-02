@@ -28,6 +28,8 @@ function mockFilter(rows, filter) {
         if (q && ![r.merchant_name, r.description, r.sample_description, r.name].some((v) => v && v.toLocaleLowerCase().includes(q))) return false;
       } else if (key === 'category_id' && value === 'none') {
         if (r.category_id != null) return false;
+      } else if (key === 'description_prefix') {
+        if (!String(r.description_norm || '').startsWith(value)) return false;
       } else if (key === 'id' || Array.isArray(value)) {
         if (![].concat(value).map(String).includes(String(r[key]))) return false;
       } else if (String(r[key]) !== String(value)) {
@@ -62,6 +64,9 @@ function applyFilters(query, filter) {
       if (text) q = q.or(`merchant_name.ilike.*${text}*,description.ilike.*${text}*`);
     } else if (key === 'category_id' && value === 'none') {
       q = q.is('category_id', null);
+    } else if (key === 'description_prefix') {
+      // What a 'prefix' rule would match; LIKE wildcards in the text are escaped.
+      q = q.like('description_norm', `${String(value).replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
     } else if (key === 'id' || Array.isArray(value)) {
       q = q.in(key, [].concat(value));
     } else {

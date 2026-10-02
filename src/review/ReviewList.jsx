@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Box, Typography, useMediaQuery } from '@mui/material';
+import { Box, Card, Typography, useMediaQuery } from '@mui/material';
 import { Datagrid, FunctionField, List, NumberField, SimpleList, useListContext } from 'react-admin';
 import { Amount } from '../components/Amount.jsx';
-import { CategorizeDialog } from '../components/CategorizeDialog.jsx';
+import { CategorizePanel } from '../components/CategorizePanel.jsx';
+import { SplitLayout } from '../components/SidePanel.jsx';
 import { formatDate, sameText } from '../format.js';
 import { num } from '../backend.js';
 
@@ -19,9 +20,10 @@ function Empty() {
   );
 }
 
-function Rows({ onSelect }) {
+function Rows({ selectedId, onSelect }) {
   const isSmall = useMediaQuery((t) => t.breakpoints.down('md'));
   const { data } = useListContext();
+  const selectedSx = (r) => (r.id === selectedId ? { bgcolor: 'action.selected' } : {});
   if (isSmall) {
     return (
       <SimpleList
@@ -29,12 +31,12 @@ function Rows({ onSelect }) {
         secondaryText={(r) => `${plural(num(r.txn_count), 'transaction')} · ${range(r)}`}
         tertiaryText={(r) => <Amount value={signedTotal(r)} credit={r.direction === 'credit'} />}
         rowClick={(id) => { onSelect(data.find((r) => r.id === id)); return false; }}
-        rowSx={() => ({ borderBottom: 1, borderColor: 'divider' })}
+        rowSx={(r) => ({ borderBottom: 1, borderColor: 'divider', ...selectedSx(r) })}
       />
     );
   }
   return (
-    <Datagrid size="small" bulkActionButtons={false} rowClick={(id, _resource, record) => { onSelect(record); return false; }}>
+    <Datagrid size="small" bulkActionButtons={false} rowClick={(id, _resource, record) => { onSelect(record); return false; }} rowSx={selectedSx}>
       <FunctionField label="Description" sortBy="sample_description" render={(r) => (
         <Box>
           <Typography variant="body2" sx={{ fontWeight: 600 }}>{r.sample_description}</Typography>
@@ -48,14 +50,32 @@ function Rows({ onSelect }) {
   );
 }
 
-export function ReviewList() {
-  const [selected, setSelected] = useState(null);
+function ReviewBody() {
+  const { data = [] } = useListContext();
+  const [selectedId, setSelectedId] = useState(null);
+  const selected = data.find((r) => r.id === selectedId) || null;
+  // After a rule is saved its group leaves the queue: move on to the next one.
+  const next = (item) => {
+    const i = data.findIndex((r) => r.id === item.id);
+    const rest = data.filter((r) => r.id !== item.id);
+    setSelectedId(rest.length ? rest[Math.min(Math.max(i, 0), rest.length - 1)].id : null);
+  };
   return (
-    <>
-      <List title="Review" sx={{ maxWidth: 1200 }} sort={{ field: 'txn_count', order: 'DESC' }} perPage={50} exporter={false} empty={<Empty />} pagination={false}>
-        <Rows onSelect={setSelected} />
-      </List>
-      <CategorizeDialog item={selected} onClose={() => setSelected(null)} />
-    </>
+    <SplitLayout
+      panel={selected && <CategorizePanel item={selected} onClose={() => setSelectedId(null)} onSaved={next} />}
+      onClose={() => setSelectedId(null)}
+    >
+      <Card>
+        <Rows selectedId={selectedId} onSelect={(r) => setSelectedId((id) => (id === r.id ? null : r.id))} />
+      </Card>
+    </SplitLayout>
+  );
+}
+
+export function ReviewList() {
+  return (
+    <List title="Review" component={Box} sort={{ field: 'txn_count', order: 'DESC' }} perPage={50} exporter={false} empty={<Empty />} pagination={false}>
+      <ReviewBody />
+    </List>
   );
 }
