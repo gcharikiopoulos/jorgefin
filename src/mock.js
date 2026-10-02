@@ -187,6 +187,22 @@ function vReviewQueue() {
   return [...groups.values()].map((g) => ({ ...g, total_amount: money(g.total_amount) }));
 }
 
+function vMerchantSummary() {
+  const groups = new Map();
+  for (const t of vTransactions()) {
+    if (!t.merchant_name) continue;
+    const g = groups.get(t.merchant_name) || { merchant_id: t.merchant_id, merchant_name: t.merchant_name, category: t.category, txn_count: 0, total_spend: 0, first_seen: t.txn_date, last_seen: t.txn_date };
+    g.txn_count += 1;
+    g.total_spend += Number(t.expense_amount);
+    if (t.txn_date < g.first_seen) g.first_seen = t.txn_date;
+    if (t.txn_date > g.last_seen) g.last_seen = t.txn_date;
+    groups.set(t.merchant_name, g);
+  }
+  return [...groups.values()]
+    .filter((g) => g.total_spend > 0)
+    .map((g) => ({ ...g, total_spend: money(g.total_spend), avg_spend: money(g.total_spend / g.txn_count) }));
+}
+
 // ---- functions ------------------------------------------------------------
 
 let nextMerchantId = 100;
@@ -227,7 +243,7 @@ const views = {
   v_monthly_by_category: vMonthlyByCategory,
   v_daily_spend: vDailySpend,
   v_review_queue: vReviewQueue,
-  v_merchant_summary: () => [],
+  v_merchant_summary: vMerchantSummary,
   v_balance_daily: () => [],
   v_budget_status: () => [],
   categories: () => categories.map((c) => ({ ...c })),

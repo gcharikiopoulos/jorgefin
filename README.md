@@ -1,37 +1,44 @@
-# Finance (test PWA)
+# Finance
 
-A small, installable test front end for a household finance tracker. It reads from a Neon Postgres database through the **Neon Data API** and signs users in with **Neon Auth** (Google). There is no backend code and no build step: plain HTML, CSS and ES modules, served as static files.
+An installable finance dashboard (PWA) for a household finance tracker, built with **React Admin** and **MUI X Charts**. It reads from a Neon Postgres database through the **Neon Data API** and signs users in with **Neon Auth** (Google). There is no backend code in this repo.
 
-Screens: **Overview** (month figures, spending by category, daily spending), **Transactions** (search, filter, change a category) and **Review** (categorise uncategorised transactions by description).
+Screens:
+- **Overview**: headline figures with month-on-month change and sparklines, cash flow by month, spending by category, daily spending, top merchants and recent transactions.
+- **Transactions**: searchable, filterable list. Click a row to change its category.
+- **Review**: uncategorised transactions grouped by description. Click one to create a rule.
+- **Categories**: the category list with its colours.
+
+Light and dark themes follow the system setting and can be switched from the top bar.
 
 ## Try it without a backend
 
-Open the app with `?mock=1`. Auth is skipped and data comes from `mock.js`, which contains invented data only. Changes you make in mock mode last until you reload.
+Open the app with `?mock=1` to see demo mode. Sign-in is skipped and the data comes from `src/mock.js`, which is all invented. Changes you make last until you reload.
 
 ## Run locally
 
-Any static server works. Serve the folder that contains the repo so the app runs from a subpath, as it will on GitHub Pages:
+Needs Node.js 22.
 
 ```sh
-cd ..                       # parent of this repo
-python3 -m http.server 8000
-# open http://localhost:8000/<repo>/?mock=1
+npm install
+npm run dev          # http://localhost:5173/?mock=1
+npm run build        # production build in dist/
+npm run preview      # serves dist/ at http://localhost:4173/jorgefin/
 ```
 
-`localhost` counts as a secure origin, so the service worker and install prompt work there too.
+`localhost` is a secure origin and is pre-approved in Neon Auth, so real sign-in works locally too.
 
 ## Configure the backend
 
-`config.js` holds the two public endpoints for the Neon project `personal-finance` (branch `main`, database `neondb`):
+`src/config.js` holds the two public endpoints for the Neon project `personal-finance` (branch `main`, database `neondb`):
 
 ```js
 export const DATA_API_URL = 'https://ep-billowing-hall-b295ail3.apirest.c-6.eu-central-1.aws.neon.tech/neondb/rest/v1';
 export const AUTH_URL = 'https://ep-billowing-hall-b295ail3.neonauth.c-6.eu-central-1.aws.neon.tech/neondb/auth';
 ```
 
-They are derived from the database endpoint host the same way the Neon SDK does it, and should match the URLs shown on the Data API and Auth pages of the Neon Console once those are enabled. They are public by design. Never commit a connection string, `.env` files or real data.
+They are public by design. Never commit a connection string, `.env` files or real data.
 
-If you change either value, update the Content-Security-Policy `connect-src` in `index.html` to the same two hosts, and bump `CACHE_VERSION` in `sw.js` so installed copies pick up the new files.
+If you change either value, change the Content-Security-Policy `connect-src` in `index.html` to the same two hosts.
 
 ### Neon setup (done)
 
@@ -49,33 +56,32 @@ Neon Auth itself lets any Google account sign up. Such an account just sees no d
 
 ## Deploy to GitHub Pages
 
-1. Push to `main`.
-2. In the repo on GitHub, go to **Settings > Pages**.
-3. Under **Build and deployment**, choose **Deploy from a branch**, branch `main`, folder `/ (root)`, and save.
-4. The site appears at `https://gcharikiopoulos.github.io/jorgefin/` after a minute or so.
+The workflow `.github/workflows/deploy.yml` builds the app on every push to `main` and publishes `dist/` to Pages.
 
-On every deploy that changes files, bump `CACHE_VERSION` in `sw.js`. The service worker serves the app shell from cache, so a new version is used from the next launch.
+One-time setup: in the repo go to **Settings > Pages**, and under **Build and deployment** set **Source** to **GitHub Actions**. The site is at `https://gcharikiopoulos.github.io/jorgefin/`.
 
-## Files
+Each build gets a fresh service-worker cache name, so installed copies pick up a new deploy the next time they are launched.
 
-| File | Purpose |
+## How it fits together
+
+| Path | Purpose |
 | --- | --- |
-| `index.html` | App shell and Content-Security-Policy |
-| `styles.css` | Styles, light and dark via `prefers-color-scheme` |
-| `app.js` | UI: screens, tabs, sheets, charts |
-| `api.js` | All data access; switches between the Neon client and `mock.js` |
-| `config.js` | The two public Neon endpoints |
-| `mock.js` | Invented fixture data for `?mock=1` |
-| `sw.js` | Service worker: caches the shell, never touches Neon requests |
-| `manifest.webmanifest`, `icons/` | PWA metadata and icons |
-| `vendor/neon-js-0.7.0-beta.js` | `@neondatabase/neon-js` bundled as one browser module (see below) |
+| `index.html` | Entry page and Content-Security-Policy |
+| `src/App.jsx` | React Admin setup: resources, routes, themes |
+| `src/dataProvider.js` | Data API reads (views) and the two write functions; also serves demo mode |
+| `src/authProvider.js` | Neon Auth: Google redirect sign-in, session, sign-out |
+| `src/backend.js` | Neon client, demo-mode switch, error handling |
+| `src/dashboard/` | Overview page and its charts |
+| `src/transactions/`, `src/review/`, `src/categories/` | List screens |
+| `src/components/` | Category chip and picker, amount, the two edit dialogs |
+| `src/theme.js`, `src/format.js` | Themes, number and date formats, chart colours |
+| `src/mock.js` | Invented demo data |
+| `src/sw.template.js` | Service worker; the build writes `dist/sw.js` from it |
+| `public/` | Manifest, icons, `.nojekyll` |
+| `db/001_access_control.sql` | Row-level security, grants and the allow-list |
 
-## The vendored Neon SDK
+### Security notes
 
-The Neon SDK is published for bundlers, so it is bundled once into `vendor/neon-js-0.7.0-beta.js` and committed. That keeps the site free of a build step and of third-party script hosts. To rebuild or upgrade it (needs Node.js), edit the version in `scripts/build-vendor.sh`, then:
-
-```sh
-sh scripts/build-vendor.sh
-```
-
-Update the import in `api.js`, the file list in `sw.js` and `vendor/LICENSES.md` if the file name changes.
+- Database values are rendered as React text, never as HTML.
+- The Content-Security-Policy only allows scripts from this site and connections to the two Neon hosts. `style-src` includes `'unsafe-inline'` because Material UI injects its styles at runtime.
+- The session stays where the Neon SDK keeps it; the app doesn't copy tokens anywhere.
