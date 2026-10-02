@@ -1,0 +1,4 @@
+# Only the Apps Script sources are pushed (paths relative to rootDir "src").
+**/**
+!appsscript.json
+!*.js

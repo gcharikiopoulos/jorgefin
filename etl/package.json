@@ -4,6 +4,13 @@
   "type": "commonjs",
   "description": "Gmail to Neon ETL (Google Apps Script). Tests run with plain Node, no dependencies.",
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "login": "clasp login --no-localhost",
+    "create": "clasp create-script --type standalone --title \"Finance ETL\" --rootDir src",
+    "push": "clasp push",
+    "open": "clasp open-script"
+  },
+  "devDependencies": {
+    "@google/clasp": "3.4.1"
   }
 }

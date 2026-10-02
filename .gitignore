@@ -16,3 +16,4 @@ dist/
 # Apps Script (clasp): script id and credentials stay local
 etl/.clasp.json
 .clasprc.json
+etl/node_modules/
