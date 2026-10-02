@@ -1,9 +1,16 @@
-// Shared styles for the dense cockpit tables.
-
 import { monoSx } from '../theme.js';
 
-export const thSx = { ...monoSx, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'cockpit.tx3', textAlign: 'left', px: 0.875, height: 24, borderBottom: 1, borderColor: 'cockpit.line2', whiteSpace: 'nowrap', bgcolor: 'cockpit.panel' };
-export const tdSx = { px: 0.875, height: 26, borderBottom: 1, borderColor: 'cockpit.line', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 0 };
+// Shared sizes and styles for the cockpit tables. Rows and controls grow to a
+// 44px touch target on phones.
+
+export const ROW = { xs: 44, md: 34 };
+export const CONTROL = { xs: 44, md: 34 };
+export const TOUCH = '@media (pointer: coarse)';
+export const TOP_BAR = 48;
+
+
+export const thSx = { ...monoSx, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'cockpit.tx3', textAlign: 'left', px: 1.25, height: { xs: 40, md: 32 }, borderBottom: 1, borderColor: 'cockpit.line2', whiteSpace: 'nowrap', bgcolor: 'cockpit.panel' };
+export const tdSx = { px: 1.25, height: ROW, fontSize: 13.5, borderBottom: 1, borderColor: 'cockpit.line', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 0 };
 export const tableSx = { width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' };
 export const hideBelowMd = { display: { xs: 'none', md: 'table-cell' } };
 export const hideBelowSm = { display: { xs: 'none', sm: 'table-cell' } };

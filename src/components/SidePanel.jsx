@@ -9,6 +9,7 @@ import { Label, Mono } from '../dashboard/parts.jsx';
 import { tableSx, tdSx, thSx } from './dense.js';
 import { formatDayMonth, formatTime, signedAmount, txnName } from '../format.js';
 import { monoSx } from '../theme.js';
+import { TOP_BAR } from './dense.js';
 import { num } from '../backend.js';
 
 const PANEL_WIDTH = 380;
@@ -28,10 +29,10 @@ export function SplitLayout({ children, panel, onClose }) {
     );
   }
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: panel ? `minmax(0, 1fr) ${PANEL_WIDTH}px` : 'minmax(0, 1fr)', gap: '5px', alignItems: 'start' }}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: panel ? `minmax(0, 1fr) ${PANEL_WIDTH}px` : 'minmax(0, 1fr)', gap: '8px', alignItems: 'start' }}>
       <Box sx={{ minWidth: 0 }}>{children}</Box>
       {panel && (
-        <Box component="aside" sx={{ position: 'sticky', top: 44, maxHeight: 'calc(100vh - 76px)', overflow: 'auto', bgcolor: 'cockpit.panel', border: 1, borderColor: 'cockpit.line', borderRadius: '3px' }}>
+        <Box component="aside" sx={{ position: 'sticky', top: TOP_BAR + 8, maxHeight: `calc(100vh - ${TOP_BAR + 40}px)`, overflow: 'auto', bgcolor: 'cockpit.panel', border: 1, borderColor: 'cockpit.line', borderRadius: '3px' }}>
           {panel}
         </Box>
       )}
@@ -42,17 +43,17 @@ export function SplitLayout({ children, panel, onClose }) {
 export function PanelHeader({ tag = 'INSPECT', title, subtitle, icon, onClose, action }) {
   return (
     <>
-      <Stack direction="row" sx={{ alignItems: 'center', gap: 1, height: 30, px: 1.5, borderBottom: 1, borderColor: 'cockpit.line' }}>
-        <Mono sx={{ fontSize: 9, color: 'cockpit.tx3', border: 1, borderColor: 'cockpit.line2', borderRadius: '2px', px: 0.5, lineHeight: '14px' }}>{tag}</Mono>
+      <Stack direction="row" sx={{ alignItems: 'center', gap: 1, height: { xs: 52, md: 40 }, px: 1.5, borderBottom: 1, borderColor: 'cockpit.line' }}>
+        <Mono sx={{ fontSize: 10.5, color: 'cockpit.tx3', border: 1, borderColor: 'cockpit.line2', borderRadius: '2px', px: 0.5, lineHeight: '14px' }}>{tag}</Mono>
         <Box sx={{ flexGrow: 1 }} />
         {action}
-        <IconButton aria-label="Close panel (Esc)" onClick={onClose} sx={{ p: '1px' }}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
+        <IconButton aria-label="Close panel (Esc)" onClick={onClose} sx={{ p: { xs: '10px', md: '6px' } }}><CloseIcon sx={{ fontSize: 20 }} /></IconButton>
       </Stack>
       <Stack direction="row" sx={{ alignItems: 'flex-start', gap: 1, px: 1.5, pt: 1.25, pb: 1 }}>
         {icon && <Box sx={{ pt: 0.375 }}>{icon}</Box>}
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontSize: 13, fontWeight: 600, overflowWrap: 'anywhere' }}>{title}</Typography>
-          {subtitle && <Mono component="div" sx={{ fontSize: 10, color: 'cockpit.tx3', mt: 0.25 }}>{subtitle}</Mono>}
+          <Typography sx={{ fontSize: 14.5, fontWeight: 600, overflowWrap: 'anywhere' }}>{title}</Typography>
+          {subtitle && <Mono component="div" sx={{ fontSize: 11.5, color: 'cockpit.tx3', mt: 0.25 }}>{subtitle}</Mono>}
         </Box>
       </Stack>
     </>
@@ -87,14 +88,14 @@ export function PanelTransactions({ filter, showCategory = true, note, title = '
 
   return (
     <Box>
-      <Stack direction="row" sx={{ alignItems: 'center', gap: 1, height: 24, px: 1.5, borderTop: 1, borderColor: 'cockpit.line' }}>
+      <Stack direction="row" sx={{ alignItems: 'center', gap: 1, height: 34, px: 1.5, borderTop: 1, borderColor: 'cockpit.line' }}>
         <Label sx={{ color: 'cockpit.tx' }}>{title}</Label>
         <Box sx={{ flexGrow: 1 }} />
-        <Mono sx={{ fontSize: 10, color: 'cockpit.tx3' }}>{rows.length < total ? `${rows.length}/${total}` : total} · <Box component="b" sx={{ color: 'cockpit.tx', fontWeight: 600 }}>{signedAmount(shownTotal)}</Box></Mono>
+        <Mono sx={{ fontSize: 11.5, color: 'cockpit.tx3' }}>{rows.length < total ? `${rows.length}/${total}` : total} · <Box component="b" sx={{ color: 'cockpit.tx', fontWeight: 600 }}>{signedAmount(shownTotal)}</Box></Mono>
       </Stack>
       <Box component="table" sx={tableSx}>
         <thead><tr>
-          <Box component="th" sx={{ ...thSx, width: 96, pl: 1.5 }}>Date</Box>
+          <Box component="th" sx={{ ...thSx, width: 110, pl: 1.5 }}>Date</Box>
           <Box component="th" sx={thSx}>Merchant</Box>
           <Box component="th" sx={{ ...thSx, width: 86, textAlign: 'right', pr: 1.5 }}>€</Box>
         </tr></thead>
@@ -105,17 +106,17 @@ export function PanelTransactions({ filter, showCategory = true, note, title = '
             return (
               <Box component="tr" key={r.id} onClick={() => setSelected(r)} tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') setSelected(r); }}
                 sx={{ cursor: 'pointer', '&:hover > td, &:focus-visible > td': { bgcolor: 'cockpit.panel2' }, outline: 'none' }}>
-                <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 10.5, color: 'cockpit.tx2', pl: 1.5 }}>{formatDayMonth(r.txn_date)} <Box component="span" sx={{ color: 'cockpit.tx3' }}>{formatTime(r.txn_at)}</Box></Box>
-                <Box component="td" sx={{ ...tdSx, height: extra || showCategory ? 34 : 26 }} title={name}>
-                  <Box sx={{ fontWeight: 600, fontSize: 11.5, overflow: 'hidden', textOverflow: 'ellipsis', ...(r.merchant_name ? {} : { ...monoSx, fontSize: 10.5, color: 'cockpit.tx2' }) }}>{name}</Box>
+                <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12, color: 'cockpit.tx2', pl: 1.5 }}>{formatDayMonth(r.txn_date)} <Box component="span" sx={{ color: 'cockpit.tx3' }}>{formatTime(r.txn_at)}</Box></Box>
+                <Box component="td" sx={{ ...tdSx, height: extra || showCategory ? { xs: 52, md: 44 } : tdSx.height }} title={name}>
+                  <Box sx={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', ...(r.merchant_name ? {} : { ...monoSx, fontSize: 12, color: 'cockpit.tx2' }) }}>{name}</Box>
                   {(showCategory || extra) && (
                     <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75, minWidth: 0 }}>
-                      {showCategory && <CategoryTag categoryId={r.category_id} name={r.category} color={r.color} sx={{ height: 14, fontSize: 9.5 }} />}
-                      {extra && <Mono sx={{ fontSize: 9.5, color: 'cockpit.tx3', overflow: 'hidden', textOverflow: 'ellipsis' }}>{extra}</Mono>}
+                      {showCategory && <CategoryTag categoryId={r.category_id} name={r.category} color={r.color} sx={{ height: 18, fontSize: 11.5 }} />}
+                      {extra && <Mono sx={{ fontSize: 11, color: 'cockpit.tx3', overflow: 'hidden', textOverflow: 'ellipsis' }}>{extra}</Mono>}
                     </Stack>
                   )}
                 </Box>
-                <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 11, fontWeight: 600, textAlign: 'right', pr: 1.5, color: r.direction === 'credit' ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(r.signed_amount)}</Box>
+                <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12.5, fontWeight: 600, textAlign: 'right', pr: 1.5, color: r.direction === 'credit' ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(r.signed_amount)}</Box>
               </Box>
             );
           })}

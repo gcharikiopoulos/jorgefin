@@ -95,7 +95,7 @@ export function SetCategoryDialog({ transaction, onClose }) {
               <Typography sx={{ fontWeight: 600, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{signedMoney(transaction.signed_amount)}</Typography>
             </Stack>
             {detail && <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{detail}</Typography>}
-            <Box component="dl" sx={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 2, rowGap: 0.25, m: 0, mt: 1, fontSize: 13, '& dt': { color: 'text.secondary' }, '& dd': { m: 0 } }}>
+            <Box component="dl" sx={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 2, rowGap: 0.25, m: 0, mt: 1, fontSize: 14.5, '& dt': { color: 'text.secondary' }, '& dd': { m: 0 } }}>
               {facts.map(([label, value]) => (
                 <Fragment key={label}><dt>{label}</dt><dd>{value}</dd></Fragment>
               ))}

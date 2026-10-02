@@ -3,7 +3,11 @@
 
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { AppBar as MuiAppBar, Box, Stack, useMediaQuery } from '@mui/material';
+import { AppBar as MuiAppBar, Badge, Box, Stack, useMediaQuery } from '@mui/material';
+import DashboardIcon from '@mui/icons-material/SpaceDashboardOutlined';
+import ReceiptIcon from '@mui/icons-material/ReceiptLongOutlined';
+import RuleIcon from '@mui/icons-material/RuleOutlined';
+import CategoryIcon from '@mui/icons-material/CategoryOutlined';
 import { Layout as RaLayout, LoadingIndicator, TitlePortal, ToggleThemeButton, UserMenu, Logout } from 'react-admin';
 import { isMock, num } from './backend.js';
 import { useMonths } from './hooks.js';
@@ -55,11 +59,11 @@ function useSectionKeys() {
 
 function ReviewBadge({ count }) {
   if (!count) return null;
-  return <Mono sx={{ fontSize: 10, fontWeight: 700, color: 'cockpit.warn', border: 1, borderColor: 'cockpit.warn', borderRadius: '2px', px: '3px', lineHeight: '13px' }}>{count > 99 ? '99+' : count}</Mono>;
+  return <Mono sx={{ fontSize: 11.5, fontWeight: 700, color: 'cockpit.warn', border: 1, borderColor: 'cockpit.warn', borderRadius: '2px', px: '3px', lineHeight: '13px' }}>{count > 99 ? '99+' : count}</Mono>;
 }
 
 const tabSx = {
-  display: 'flex', alignItems: 'center', gap: 0.75, px: 1.5, color: 'cockpit.tx2', textDecoration: 'none', fontSize: 12, whiteSpace: 'nowrap',
+  display: 'flex', alignItems: 'center', gap: 0.75, px: 1.75, color: 'cockpit.tx2', textDecoration: 'none', fontSize: 14, whiteSpace: 'nowrap',
   '&:hover': { color: 'cockpit.tx' },
   '&.active': { color: 'cockpit.tx', fontWeight: 600, boxShadow: (t) => `inset 0 -2px 0 ${t.palette.primary.main}` },
 };
@@ -69,14 +73,14 @@ function TopBar() {
   const online = useOnline();
   const small = useMediaQuery((t) => t.breakpoints.down('sm'));
   return (
-    <MuiAppBar position="fixed" elevation={0} color="inherit" sx={{ height: 38, bgcolor: 'cockpit.panel', borderBottom: 1, borderColor: 'cockpit.line', backgroundImage: 'none' }}>
-      <Stack direction="row" sx={{ height: 38, alignItems: 'center', gap: 1.5, px: 1.5 }}>
+    <MuiAppBar position="fixed" elevation={0} color="inherit" sx={{ height: 48, bgcolor: 'cockpit.panel', borderBottom: 1, borderColor: 'cockpit.line', backgroundImage: 'none' }}>
+      <Stack direction="row" sx={{ height: 48, alignItems: 'center', gap: 1.5, px: 1.5, '& .MuiIconButton-root': { p: { xs: '10px', sm: '8px' } } }}>
         <Stack direction="row" sx={{ alignItems: 'center', gap: 0.875 }}>
           <Box component="svg" width={16} height={16} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} sx={{ color: 'primary.main' }} aria-hidden>
             <path d="M2 12 L6 7 L9 9.5 L14 3" /><path d="M10.5 3 H14 V6.5" />
           </Box>
-          <Mono sx={{ fontWeight: 700, fontSize: 12, letterSpacing: '0.12em' }}>JORGEFIN</Mono>
-          {isMock && <Mono sx={{ fontSize: 9, color: 'cockpit.warn', border: 1, borderColor: 'cockpit.warn', borderRadius: '2px', px: 0.5, lineHeight: '14px' }}>DEMO</Mono>}
+          <Mono sx={{ fontWeight: 700, fontSize: 13.5, letterSpacing: '0.12em' }}>JORGEFIN</Mono>
+          {isMock && <Mono sx={{ fontSize: 10.5, color: 'cockpit.warn', border: 1, borderColor: 'cockpit.warn', borderRadius: '2px', px: 0.5, lineHeight: '14px' }}>DEMO</Mono>}
         </Stack>
         {!small && (
           <Stack component="nav" aria-label="Sections" direction="row" sx={{ alignSelf: 'stretch', ml: 0.75 }}>
@@ -102,17 +106,25 @@ function TopBar() {
   );
 }
 
+const TAB_ICONS = { '/': DashboardIcon, '/transactions': ReceiptIcon, '/review': RuleIcon, '/categories': CategoryIcon };
+
 function BottomTabs() {
   const reviewCount = useReviewCount();
   return (
-    <Box component="nav" aria-label="Sections" sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1100, height: 52, display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', bgcolor: 'cockpit.panel', borderTop: 1, borderColor: 'cockpit.line', pb: 'env(safe-area-inset-bottom)' }}>
-      {SECTIONS.map((s) => (
-        <Box key={s.to} component={NavLink} to={s.to} end={s.end}
-          sx={{ ...monoSx, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, fontSize: 9.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'cockpit.tx3', textDecoration: 'none', '&.active': { color: 'cockpit.tx', fontWeight: 700, boxShadow: (t) => `inset 0 2px 0 ${t.palette.primary.main}` } }}>
-          {s.label === 'Transactions' ? 'Ledger' : s.label}
-          {s.badge === 'review' && <ReviewBadge count={reviewCount} />}
-        </Box>
-      ))}
+    <Box component="nav" aria-label="Sections" sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1100, height: 'calc(60px + env(safe-area-inset-bottom))', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', bgcolor: 'cockpit.panel', borderTop: 1, borderColor: 'cockpit.line', pb: 'env(safe-area-inset-bottom)' }}>
+      {SECTIONS.map((s) => {
+        const Icon = TAB_ICONS[s.to];
+        return (
+          <Box key={s.to} component={NavLink} to={s.to} end={s.end}
+            sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px', fontSize: 11.5, fontWeight: 500, color: 'cockpit.tx3', textDecoration: 'none', '&.active': { color: 'cockpit.tx', fontWeight: 700, boxShadow: (t) => `inset 0 2px 0 ${t.palette.primary.main}`, '& svg': { color: 'primary.main' } } }}>
+            <Badge badgeContent={s.badge === 'review' ? reviewCount : 0} max={99} invisible={!(s.badge === 'review' && reviewCount)}
+              sx={{ '& .MuiBadge-badge': { bgcolor: 'cockpit.warn', color: '#111', fontWeight: 700, fontSize: 10, height: 16, minWidth: 16, px: 0.5 } }}>
+              <Icon sx={{ fontSize: 22 }} />
+            </Badge>
+            {s.label === 'Transactions' ? 'Ledger' : s.label}
+          </Box>
+        );
+      })}
     </Box>
   );
 }
@@ -121,7 +133,7 @@ function StatusBar() {
   const online = useOnline();
   const { pathname } = useLocation();
   return (
-    <Mono component="footer" sx={{ height: 22, display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1.75, px: 1.5, mx: -0.75, mt: 'auto', borderTop: 1, borderColor: 'cockpit.line', bgcolor: 'cockpit.panel', fontSize: 9.5, color: 'cockpit.tx3', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+    <Mono component="footer" sx={{ height: 28, display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1.75, px: 1.5, mx: -0.75, mt: 'auto', borderTop: 1, borderColor: 'cockpit.line', bgcolor: 'cockpit.panel', fontSize: 11, color: 'cockpit.tx3', whiteSpace: 'nowrap', overflow: 'hidden' }}>
       <span><Box component="span" sx={{ color: online ? 'cockpit.pos' : 'cockpit.warn' }}>●</Box> {online ? 'ONLINE' : 'OFFLINE · CACHED'}</span>
       {isMock && <span>DEMO DATA</span>}
       <Box sx={{ flexGrow: 1 }} />
@@ -137,7 +149,7 @@ export function Layout({ children }) {
   useSectionKeys();
   const small = useMediaQuery((t) => t.breakpoints.down('sm'));
   return (
-    <RaLayout appBar={TopBar} sidebar={() => null} sx={{ '& .RaLayout-content': { pb: small ? '60px' : 0, minHeight: 'calc(100vh - 38px)' } }}>
+    <RaLayout appBar={TopBar} sidebar={() => null} sx={{ minWidth: 0, '& .RaLayout-content': { pb: small ? '76px' : 0, minHeight: 'calc(100vh - 48px)', minWidth: 0 } }}>
       <OfflineBanner />
       {children}
       <StatusBar />
