@@ -1,7 +1,8 @@
 // Pure parsing helpers and per-alert-type parsers. No Apps Script globals here,
 // so the same file runs under Node for the tests in etl/test.
 //
-// A parser takes { id, from, subject, body, date } (body = plain text) and returns
+// A parser takes { id, from, subject, body, html, date } (body = plain text, html =
+// the HTML body when there is one) and returns
 // an array of transactions in the shape fin_ingest_email_transactions() expects,
 // or null when the email is not one it understands.
 
@@ -69,6 +70,30 @@ function flatten_(body) {
     .trim();
 }
 
+// HTML body -> plain text with spaces where tags were. Used instead of Gmail's own
+// plain-text conversion, which wraps <strong> text in asterisks and so mangles
+// masked card numbers and amounts.
+function htmlToText_(html) {
+  return String(html || '')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<(style|script|head|title)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// The text a parser should read: the HTML converted here when present, else the plain body.
+function emailText_(email) {
+  return normalizeText(flatten_(email.html ? htmlToText_(email.html) : email.body));
+}
+
 // ---- Alpha Bank parsers ---------------------------------------------------------
 // Each returns null for emails it does not recognise, so unknown formats are
 // reported for review, never guessed.
@@ -79,16 +104,19 @@ function flatten_(body) {
 const ACCOUNT_ALERT_RE = /ΤΗΝ (\d{1,2}\/\d{1,2}\/\d{4}) ΚΑΙ ΩΡΑ (\d{1,2}:\d{2}).*?ΛΟΓΑΡΙΑΣΜΟ ΣΑΣ (\*+\d+).*?ΕΙΔΟΣ ΚΙΝΗΣΗΣ:\s*(.+?)\s+ΠΟΣΟ:\s*([\d.,]+)\s*([A-Z]{3})\s+(ΧΡΕΩΣΗ|ΠΙΣΤΩΣΗ)/;
 
 // Account alert type -> txn_type. Unknown types stay 'other'.
+// Order matters: the first match wins.
 const ACCOUNT_TXN_TYPES = [
+  [/ΑΝΤΙΛΟΓΙΣΜ/, 'other'],
   [/ΚΑΡΤΑ-ΑΓΟΡΑ/, 'card_purchase'],
   [/ΚΑΡΤΑ-ΑΚΥΡΩΣΗ|ΚΑΡΤΑ-ΕΠΙΣΤΡΟΦΗ/, 'card_refund'],
-  [/ΑΤΜ|ATM/, 'atm_withdrawal'],
-  [/ΜΕΤΑΦΟΡΑ|ΕΜΒΑΣΜΑ/, 'transfer'],
-  [/ΠΛΗΡΩΜ|ΑΣΦΑΛΙΣΤΡΑ|ΠΑΓΙΑ/, 'payment'],
+  [/ΑΤΜ|ATM|ΑΝΑΛΗΨΗ/, 'atm_withdrawal'],
+  [/ΕΞΟΔΑ|ΠΛΗΡΩΜ|ΑΣΦΑΛΙΣΤΡΑ|ΠΑΓΙΑ/, 'payment'],
+  [/ΜΕΤΑΦΟΡΑ|ΕΜΒΑΣΜΑ|ΕΝΤΟΛ/, 'transfer'],
 ];
 
 function parseAccountAlert(email) {
   if (!/alerts@alpha\.gr/i.test(email.from || '')) return null;
+  // Account alerts parse reliably from Gmail's plain text, so they keep using it.
   const m = normalizeText(flatten_(email.body)).match(ACCOUNT_ALERT_RE);
   if (!m) return null;
   const [, date, time, mask, type, amount, currency, side] = m;
@@ -112,11 +140,12 @@ function parseAccountAlert(email) {
 //    στην επιχείρηση <MERCHANT>. Με εκτίμηση"
 //   "...πληρωμή πάγιας εντολής με την κάρτα <CARD> με αριθμό ****NNNN στις DD/MM/YYYY HH:MM,
 //    <MERCHANT> αξίας EUR 2,00. Mε εκτίμηση"
-const CARD_ALERT_RE = /ΜΕ ΑΡΙΘΜΟ (\*+\d+) ΣΤΙΣ (\d{1,2}\/\d{1,2}\/\d{4}) (\d{1,2}:\d{2}),\s*(.*?)\s*ΑΞΙΑΣ ([A-Z]{3}) ([\d.,]+)(?:\s+ΣΤΗΝ ΕΠΙΧΕΙΡΗΣΗ (.+?))?\.\s*[MΜ][EΕ] ΕΚΤΙΜΗΣΗ/;
+// Stray '*' around values (bold text in Gmail's plain-text version) are tolerated.
+const CARD_ALERT_RE = /ΜΕ ΑΡΙΘΜΟ\s*(\*+\d+)\**\s*ΣΤΙΣ\s*\**(\d{1,2}\/\d{1,2}\/\d{4})\s+(\d{1,2}:\d{2})\**\s*,\s*\**(.*?)\**\s*ΑΞΙΑΣ\s*\**([A-Z]{3})\s*([\d.,]+)\**(?:\s*ΣΤΗΝ ΕΠΙΧΕΙΡΗΣΗ\s*\**(.+?)\**)?\s*\.\s*[MΜ][EΕ] ΕΚΤΙΜΗΣΗ/;
 
 function parseCardAlert(email) {
   if (!/ebanking@alpha\.gr/i.test(email.from || '')) return null;
-  const text = normalizeText(flatten_(email.body));
+  const text = emailText_(email);
   const m = text.match(CARD_ALERT_RE);
   if (!m) return null;
   const [, mask, date, time, before, currency, amount, merchantAfter] = m;
@@ -154,7 +183,7 @@ function parseEmail(email) {
           sender: email.from || '',
           subject: email.subject || '',
           alert_type: type,
-          snippet: snippet_(email.body),
+          snippet: snippet_(email.body || htmlToText_(email.html)),
           ...t,
         })),
       };
@@ -164,5 +193,5 @@ function parseEmail(email) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { parseAmount, parseDate, parseTime, normalizeText, flatten_, parseEmail, parseAccountAlert, parseCardAlert };
+  module.exports = { parseAmount, parseDate, parseTime, normalizeText, flatten_, htmlToText_, emailText_, parseEmail, parseAccountAlert, parseCardAlert };
 }

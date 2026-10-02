@@ -59,10 +59,14 @@ function process_({ dryRun }) {
         if (message.getDate() < since) continue;
         if (!config.senders.some((s) => message.getFrom().toLowerCase().includes(s.toLowerCase()))) continue;
         messages += 1;
-        const email = { id: message.getId(), from: message.getFrom(), subject: message.getSubject(), body: message.getPlainBody(), date: message.getDate() };
+        const email = { id: message.getId(), from: message.getFrom(), subject: message.getSubject(), body: message.getPlainBody(), html: message.getBody(), date: message.getDate() };
         const result = parseEmail(email);
         if (result) rows.push(...result.transactions);
-        else unrecognised.push(`${email.date.toISOString()} ${email.subject}`);
+        else {
+          unrecognised.push(`${email.date.toISOString()} ${email.subject}`);
+          // A card alert that fails to parse is a parser bug: show its text in a dry run.
+          if (dryRun && /ebanking@/i.test(email.from)) Logger.log('Unparsed card alert text: %s', emailText_(email).slice(0, 600));
+        }
       }
     }
 

@@ -23,6 +23,12 @@ const standingOrder = (date, time, merchant, amount) => ` Alpha Alerts
 
 | | Αγαπητέ πελάτη, Θα θέλαμε να σας ενημερώσουμε ότι πραγματοποιήθηκε πληρωμή πάγιας εντολής με την κάρτα Example Visa με αριθμό ***********2222 στις ${date} ${time}, ${merchant} αξίας EUR ${amount}. Mε εκτίμηση, Alpha Bank | |`;
 
+// HTML-only card alert, laid out like the real one (tags split across lines).
+const cardHtml = (date, time, amount, merchant) => `<html><head><title>Alpha Alerts</title></head><body>\r\n<table><tr><td><!--\r\nmain\r\n-->\r\n<p\r\nstyle="x"><strong>Αγαπητέ\r\nπελάτη,</strong><br\r\n/><br\r\n/>Θα\r\nθέλαμε\r\nνα\r\nσας\r\nενημερώσουμε\r\nότι\r\nπραγματοποιήθηκε\r\nσυναλλαγή\r\nμε\r\nτη\r\nκάρτα\r\n<strong>Gold Example Visa</strong>\r\nμε\r\nαριθμό\r\n<strong>************1111</strong>\r\nστις\r\n<strong>${date} ${time}</strong>,\r\nαξίας\r\n<strong>EUR\r\n${amount}</strong>\r\nστην\r\nεπιχείρηση\r\n<strong>${merchant}</strong>.<br/><br/>Με\r\nεκτίμηση,<br/><strong>Alpha\r\nBank</strong></p></td><td width="65">&nbsp;</td></tr></table></body></html>`;
+
+// What Gmail's plain-text conversion makes of it: bold text wrapped in asterisks.
+const cardStarred = (date, time, amount, merchant) => `Αγαπητέ πελάτη, Θα θέλαμε να σας ενημερώσουμε ότι πραγματοποιήθηκε συναλλαγή με τη κάρτα *Gold Example Visa* με αριθμό *************1111* στις *${date} ${time}*, αξίας *EUR ${amount}* στην επιχείρηση *${merchant}*. Με εκτίμηση, *Alpha Bank*`;
+
 const ACCOUNT_FROM = 'Alpha Bank <alerts@alpha.gr>';
 const CARD_FROM = 'ebanking@alpha.gr';
 
@@ -35,5 +41,7 @@ module.exports = {
   cardPurchase: { id: 'msg-c1', from: CARD_FROM, subject: 'Alpha Alerts', date: '2026-01-05T08:30:00Z', body: cardPurchase('05/01/2026', '10:30', 'EUR', '4,50', 'CORNER BAKERY Greece') },
   cardForeign: { id: 'msg-c2', from: CARD_FROM, subject: 'Alpha Alerts', date: '2026-01-10T08:30:00Z', body: cardPurchase('10/01/2026', '10:30', 'USD', '9,99', 'EXAMPLE APP STORE United States') },
   standingOrder: { id: 'msg-c3', from: CARD_FROM, subject: 'Alpha Alerts', date: '2026-01-11T07:00:00Z', body: standingOrder('11/01/2026', '09:00', 'Example Charity United States', '5,00') },
+  cardHtml: { id: 'msg-c4', from: CARD_FROM, subject: 'Alpha Alerts', date: '2026-01-12T06:00:00Z', body: '', html: cardHtml('12/01/2026', '08:46', '3,98', 'EXAMPLE KIOSK Greece') },
+  cardStarred: { id: 'msg-c5', from: CARD_FROM, subject: 'Alpha Alerts', date: '2026-01-12T06:00:00Z', body: cardStarred('12/01/2026', '08:46', '3,98', 'EXAMPLE KIOSK Greece') },
   unrelated: { id: 'msg-x', from: 'alerts@alpha.gr', subject: 'News', date: '2026-01-12T07:00:00Z', body: 'Νέα προϊόντα από την Alpha Bank.' },
 };
