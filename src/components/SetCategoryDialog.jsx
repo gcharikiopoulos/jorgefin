@@ -1,11 +1,31 @@
 import { Fragment, useEffect, useState } from 'react';
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography, useMediaQuery } from '@mui/material';
+import { Alert, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, TextField, Typography, useMediaQuery } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
 import { useDataProvider, useNotify, useRefresh } from 'react-admin';
 import { CategorySelect } from './CategorySelect.jsx';
 import { formatDate, formatTime, signedMoney, sourceLabel, txnName, txnTypeLabel } from '../format.js';
 import { useRefreshAfterWrite } from '../hooks.js';
 
-// Manual override for one transaction, through fin_set_category.
+// How many other transactions share this one's description, and how many of those
+// were categorised by hand (a rule leaves those alone).
+function useIdentical(transaction) {
+  const dataProvider = useDataProvider();
+  const norm = transaction?.description_norm;
+  return useQuery({
+    queryKey: ['identical', norm],
+    enabled: !!norm,
+    queryFn: async () => {
+      const count = async (filter) => (await dataProvider.getList('transactions', { pagination: { page: 1, perPage: 1 }, sort: { field: 'id', order: 'ASC' }, filter: { description_norm: norm, ...filter } })).total;
+      const [all, manual] = await Promise.all([count({}), count({ category_source: 'manual' })]);
+      const selfManual = transaction.category_source === 'manual' ? 1 : 0;
+      return { others: Math.max(0, all - 1), manualOthers: Math.max(0, manual - selfManual) };
+    },
+  });
+}
+
+// Manual override for one transaction, through fin_set_category. Optionally also
+// creates an exact-match rule (fin_categorize) for every transaction with the same
+// description, now and in future imports.
 export function SetCategoryDialog({ transaction, onClose }) {
   const dataProvider = useDataProvider();
   const notify = useNotify();
@@ -16,14 +36,19 @@ export function SetCategoryDialog({ transaction, onClose }) {
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [applyAll, setApplyAll] = useState(false);
+  const identical = useIdentical(transaction);
 
   useEffect(() => {
     setCategoryId(transaction?.category_id ?? null);
     setNote(transaction?.note ?? '');
     setError('');
+    setApplyAll(false);
   }, [transaction]);
 
   if (!transaction) return null;
+  const others = identical.data?.others ?? 0;
+  const manualOthers = identical.data?.manualOthers ?? 0;
   const { name, detail } = txnName(transaction);
   const t = transaction;
   const facts = [
@@ -42,7 +67,12 @@ export function SetCategoryDialog({ transaction, onClose }) {
     setError('');
     try {
       await dataProvider.setCategory({ txnId: transaction.id, categoryId, note: note.trim() || null });
-      notify('Category updated', { type: 'success' });
+      if (applyAll && others > 0) {
+        const updated = await dataProvider.categorize({ pattern: transaction.description_norm, categoryId, matchType: 'exact' });
+        notify(`Category set on this and ${updated} other ${updated === 1 ? 'transaction' : 'transactions'}`, { type: 'success' });
+      } else {
+        notify('Category updated', { type: 'success' });
+      }
       refreshQueries();
       refresh();
       onClose();
@@ -73,6 +103,20 @@ export function SetCategoryDialog({ transaction, onClose }) {
           </Box>
           <CategorySelect value={categoryId} onChange={setCategoryId} autoFocus />
           <TextField label="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }} fullWidth />
+          {others > 0 && (
+            <Box>
+              <FormControlLabel
+                control={<Checkbox checked={applyAll} onChange={(e) => setApplyAll(e.target.checked)} />}
+                label={`Also apply to the ${others} other ${others === 1 ? 'transaction' : 'transactions'} with this description, and to future ones`}
+                sx={{ alignItems: 'flex-start', '& .MuiCheckbox-root': { pt: 0.25 } }}
+              />
+              {applyAll && manualOthers > 0 && (
+                <Typography variant="caption" color="text.secondary" component="div" sx={{ pl: 4 }}>
+                  {manualOthers} of them you categorised by hand; those keep their category.
+                </Typography>
+              )}
+            </Box>
+          )}
           {error && <Alert severity="error">{error}</Alert>}
         </Stack>
       </DialogContent>
