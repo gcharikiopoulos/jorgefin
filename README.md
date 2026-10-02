@@ -22,26 +22,20 @@ python3 -m http.server 8000
 
 ## Configure the backend
 
-Put the two public endpoints in `config.js` (both are visible in the Neon Console):
+`config.js` holds the two public endpoints for the Neon project `personal-finance` (branch `main`, database `neondb`):
 
 ```js
-export const DATA_API_URL = 'https://ep-…apirest.<region>.aws.neon.tech/neondb/rest/v1'; // Data API page
-export const AUTH_URL = 'https://ep-…neonauth.<region>.aws.neon.tech/neondb/auth';      // Auth > Configuration
+export const DATA_API_URL = 'https://ep-billowing-hall-b295ail3.apirest.c-6.eu-central-1.aws.neon.tech/neondb/rest/v1';
+export const AUTH_URL = 'https://ep-billowing-hall-b295ail3.neonauth.c-6.eu-central-1.aws.neon.tech/neondb/auth';
 ```
 
-They are public by design. Never commit a connection string, `.env` files or real data.
+They are derived from the database endpoint host the same way the Neon SDK does it, and should match the URLs shown on the Data API and Auth pages of the Neon Console once those are enabled. They are public by design. Never commit a connection string, `.env` files or real data.
 
-Then, in `index.html`, narrow the Content-Security-Policy `connect-src` from `https://*.neon.tech` to the two exact hosts, for example:
-
-```
-connect-src 'self' https://ep-…apirest.<region>.aws.neon.tech https://ep-…neonauth.<region>.aws.neon.tech
-```
-
-Finally, bump `CACHE_VERSION` in `sw.js` so installed copies pick up the new files.
+If you change either value, update the Content-Security-Policy `connect-src` in `index.html` to the same two hosts, and bump `CACHE_VERSION` in `sw.js` so installed copies pick up the new files.
 
 ### Neon Auth settings
 
-- **Trusted domain**: add the GitHub Pages origin, `https://<user>.github.io`, under Auth > Configuration > Domains. Use the origin only: no repo path, no trailing slash. `localhost` is allowed by default.
+- **Trusted domain**: add the GitHub Pages origin, `https://gcharikiopoulos.github.io`, under Auth > Configuration > Domains. Use the origin only: no repo path, no trailing slash. `localhost` is allowed by default.
 - **Google**: enable the Google provider. Neon's shared test credentials are fine to start with. If you use your own Google OAuth client, its authorised redirect URI must be `<AUTH_URL>/callback/google`.
 - Neon Auth lets any Google account sign up. Access to data is controlled by row-level security in the database. An account that is signed in but sees no rows in `v_monthly_summary` is shown "This account is not authorised".
 
@@ -50,7 +44,7 @@ Finally, bump `CACHE_VERSION` in `sw.js` so installed copies pick up the new fil
 1. Push to `main`.
 2. In the repo on GitHub, go to **Settings > Pages**.
 3. Under **Build and deployment**, choose **Deploy from a branch**, branch `main`, folder `/ (root)`, and save.
-4. The site appears at `https://<user>.github.io/<repo>/` after a minute or so.
+4. The site appears at `https://gcharikiopoulos.github.io/jorgefin/` after a minute or so.
 
 On every deploy that changes files, bump `CACHE_VERSION` in `sw.js`. The service worker serves the app shell from cache, so a new version is used from the next launch.
 

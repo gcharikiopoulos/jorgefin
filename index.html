@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <!-- connect-src: narrow https://*.neon.tech to your exact Data API and Auth hosts once known (see README). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.neon.tech; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'">
+  <!-- connect-src must list the Data API and Auth hosts from config.js. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://ep-billowing-hall-b295ail3.apirest.c-6.eu-central-1.aws.neon.tech https://ep-billowing-hall-b295ail3.neonauth.c-6.eu-central-1.aws.neon.tech; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Finance</title>
   <meta name="description" content="Household finance tracker (test front end)">
