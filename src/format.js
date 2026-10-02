@@ -67,6 +67,25 @@ export const sourceShort = (source) => SOURCE_TAGS[source] || (source ? String(s
 // Name to show for a transaction, plus the bank's description when it says something different.
 const plain = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
 export const sameText = (a, b) => plain(a) === plain(b);
+
+// Same result as the database's fin_normalize: upper case, Greek accents dropped,
+// Greek capitals that look Latin turned into Latin, '_' as a space, single spaces.
+// Rules match on this, so "starts with" previews use it too.
+const GREEK_TO_LATIN = { 'Ά': 'A', 'Έ': 'E', 'Ή': 'H', 'Ί': 'I', 'Ό': 'O', 'Ύ': 'Y', 'Ώ': 'Ω', 'Ϊ': 'I', 'Ϋ': 'Y', 'Α': 'A', 'Β': 'B', 'Ε': 'E', 'Ζ': 'Z', 'Η': 'H', 'Ι': 'I', 'Κ': 'K', 'Μ': 'M', 'Ν': 'N', 'Ο': 'O', 'Ρ': 'P', 'Τ': 'T', 'Υ': 'Y', 'Χ': 'X', '_': ' ' };
+export const normalizeText = (s) => String(s || '').trim().replace(/^="?|"$/g, '').toUpperCase().replace(/[ΆΈΉΊΌΎΏΪΫΑΒΕΖΗΙΚΜΝΟΡΤΥΧ_]/g, (c) => GREEK_TO_LATIN[c]).replace(/\s+/g, ' ').trim();
+
+// A "starts with" pattern for a description: the leading words before the first
+// one with a digit in it (reference codes), without trailing punctuation.
+// "SPOTIFY P36DD67B53" -> "SPOTIFY", "FREENOW* D6UAZZ-2" -> "FREENOW".
+export function suggestPrefix(description) {
+  const words = normalizeText(description).split(' ');
+  const lead = [];
+  for (const w of words) {
+    if (/\d/.test(w)) break;
+    lead.push(w);
+  }
+  return (lead.join(' ') || words[0] || '').replace(/[^\p{L}\p{N}]+$/u, '');
+}
 export function txnName(t) {
   const name = t.merchant_name || t.description || '';
   return { name, detail: t.description && !sameText(name, t.description) ? t.description : '' };
