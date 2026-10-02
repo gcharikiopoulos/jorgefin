@@ -112,12 +112,19 @@ async function list(resource, { pagination, sort, filter } = {}) {
   const perPage = pagination?.perPage ?? 1000;
   if (isMock) {
     const mock = await getMock();
-    const rows = mockSort(mockFilter(withIds(resource, await mock.select(view)), filter), sort);
+    let rows = mockFilter(withIds(resource, await mock.select(view)), filter);
+    // Same tie-break as the real query: date, then time, then entry order.
+    if (resource === 'transactions' && sort?.field === 'txn_date') rows = mockSort(mockSort(mockSort(rows, { field: 'id', order: sort.order }), { field: 'txn_at', order: sort.order }), sort);
+    else rows = mockSort(rows, sort);
     return { data: rows.slice((page - 1) * perPage, page * perPage), total: rows.length };
   }
   const client = await getClient();
   let query = applyFilters(client.from(view).select('*', { count: 'exact' }), filter);
   if (sort?.field && sort.field !== 'id') query = query.order(sort.field, { ascending: sort.order !== 'DESC', nullsFirst: false });
+  // Same-day transactions: by time where the source has one, then by entry order.
+  if (resource === 'transactions' && sort?.field === 'txn_date') {
+    query = query.order('txn_at', { ascending: sort.order !== 'DESC', nullsFirst: false }).order('id', { ascending: sort.order !== 'DESC' });
+  }
   else if (sort?.field === 'id' && resource !== 'review') query = query.order('id', { ascending: sort.order !== 'DESC' });
   query = query.range((page - 1) * perPage, page * perPage - 1);
   const { data, count } = unwrap(await query);
