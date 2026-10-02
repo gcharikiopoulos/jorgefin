@@ -60,16 +60,79 @@ function snippet_(body) {
   return String(body || '').replace(/\s+/g, ' ').trim().slice(0, 400);
 }
 
-// ---- per-alert-type parsers ---------------------------------------------------
-// Filled in from sample emails (see etl/README.md). Each returns null for emails
-// it does not recognise, so unknown formats are labelled for review, never guessed.
-
-function parseAccountAlert(email) {
-  return null;
+// Collapses an email body (plain text, often with table pipes and bullets) to one line.
+function flatten_(body) {
+  return String(body || '')
+    .replace(/[|]/g, ' ')
+    .replace(/(^|\s)\*(?=\s)/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
+// ---- Alpha Bank parsers ---------------------------------------------------------
+// Each returns null for emails it does not recognise, so unknown formats are
+// reported for review, never guessed.
+
+// Account alert from alerts@alpha.gr:
+//   "Σας ενημερώνουμε ότι την DD/MM/YYYY και ώρα HH:MM, πραγματοποιήθηκε η κάτωθι κίνηση
+//    στον λογαριασμό σας ***NNN * Ειδος κίνησης: <TYPE> * Ποσό: 1.234,56 EUR Χρέωση|Πίστωση"
+const ACCOUNT_ALERT_RE = /ΤΗΝ (\d{1,2}\/\d{1,2}\/\d{4}) ΚΑΙ ΩΡΑ (\d{1,2}:\d{2}).*?ΛΟΓΑΡΙΑΣΜΟ ΣΑΣ (\*+\d+).*?ΕΙΔΟΣ ΚΙΝΗΣΗΣ:\s*(.+?)\s+ΠΟΣΟ:\s*([\d.,]+)\s*([A-Z]{3})\s+(ΧΡΕΩΣΗ|ΠΙΣΤΩΣΗ)/;
+
+// Account alert type -> txn_type. Unknown types stay 'other'.
+const ACCOUNT_TXN_TYPES = [
+  [/ΚΑΡΤΑ-ΑΓΟΡΑ/, 'card_purchase'],
+  [/ΚΑΡΤΑ-ΑΚΥΡΩΣΗ|ΚΑΡΤΑ-ΕΠΙΣΤΡΟΦΗ/, 'card_refund'],
+  [/ΑΤΜ|ATM/, 'atm_withdrawal'],
+  [/ΜΕΤΑΦΟΡΑ|ΕΜΒΑΣΜΑ/, 'transfer'],
+  [/ΠΛΗΡΩΜ|ΑΣΦΑΛΙΣΤΡΑ|ΠΑΓΙΑ/, 'payment'],
+];
+
+function parseAccountAlert(email) {
+  if (!/alerts@alpha\.gr/i.test(email.from || '')) return null;
+  const m = normalizeText(flatten_(email.body)).match(ACCOUNT_ALERT_RE);
+  if (!m) return null;
+  const [, date, time, mask, type, amount, currency, side] = m;
+  const typeText = type.trim();
+  const found = ACCOUNT_TXN_TYPES.find(([re]) => re.test(typeText));
+  const txn = {
+    account_mask: mask,
+    txn_date: parseDate(date),
+    txn_time: parseTime(time),
+    amount: parseAmount(amount),
+    currency,
+    direction: side === 'ΧΡΕΩΣΗ' ? 'debit' : 'credit',
+    txn_type: found ? found[1] : 'other',
+    description: typeText,
+  };
+  return txn.txn_date && txn.amount ? [txn] : null;
+}
+
+// Card alert from ebanking@alpha.gr, two layouts:
+//   "...συναλλαγή με τη κάρτα <CARD> με αριθμό ****NNNN στις DD/MM/YYYY HH:MM, αξίας EUR 3,98
+//    στην επιχείρηση <MERCHANT>. Με εκτίμηση"
+//   "...πληρωμή πάγιας εντολής με την κάρτα <CARD> με αριθμό ****NNNN στις DD/MM/YYYY HH:MM,
+//    <MERCHANT> αξίας EUR 2,00. Mε εκτίμηση"
+const CARD_ALERT_RE = /ΜΕ ΑΡΙΘΜΟ (\*+\d+) ΣΤΙΣ (\d{1,2}\/\d{1,2}\/\d{4}) (\d{1,2}:\d{2}),\s*(.*?)\s*ΑΞΙΑΣ ([A-Z]{3}) ([\d.,]+)(?:\s+ΣΤΗΝ ΕΠΙΧΕΙΡΗΣΗ (.+?))?\.\s*[MΜ][EΕ] ΕΚΤΙΜΗΣΗ/;
+
 function parseCardAlert(email) {
-  return null;
+  if (!/ebanking@alpha\.gr/i.test(email.from || '')) return null;
+  const text = normalizeText(flatten_(email.body));
+  const m = text.match(CARD_ALERT_RE);
+  if (!m) return null;
+  const [, mask, date, time, before, currency, amount, merchantAfter] = m;
+  const merchant = (merchantAfter || before || '').trim();
+  const refund = /ΕΠΙΣΤΡΟΦΗ|ΑΚΥΡΩΣΗ/.test(text.slice(0, m.index));
+  const txn = {
+    account_mask: mask,
+    txn_date: parseDate(date),
+    txn_time: parseTime(time),
+    amount: parseAmount(amount),
+    currency,
+    direction: refund ? 'credit' : 'debit',
+    txn_type: refund ? 'card_refund' : 'card_purchase',
+    description: merchant,
+  };
+  return txn.txn_date && txn.amount && merchant ? [txn] : null;
 }
 
 const PARSERS = [
@@ -101,5 +164,5 @@ function parseEmail(email) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { parseAmount, parseDate, parseTime, normalizeText, parseEmail, parseAccountAlert, parseCardAlert };
+  module.exports = { parseAmount, parseDate, parseTime, normalizeText, flatten_, parseEmail, parseAccountAlert, parseCardAlert };
 }

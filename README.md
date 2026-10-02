@@ -54,6 +54,16 @@ If you change either value, change the Content-Security-Policy `connect-src` in 
 
 Neon Auth itself lets any Google account sign up. Such an account just sees no data and gets "This account is not authorised".
 
+## Database changes
+
+Schema and permission changes live in `db/` as numbered SQL files, written to be safe to run more than once. They are applied by hand in the Neon SQL Editor (or by asking Claude with the Neon tools), not by the deploy workflow: that would need the database owner's credential stored in GitHub. Apply them in order, and try risky ones on a Neon branch first.
+
+| File | What it does |
+| --- | --- |
+| `db/001_access_control.sql` | RLS, read-only grants for the web app, allow-list |
+| `db/002_email_ingest.sql` | Email staging table, ingest function, `etl_ingest` role |
+| `db/003_alert_dedup.sql` | One row per payment across card alerts, account alerts and statements |
+
 ## Email import (ETL)
 
 Bank alert emails are imported by a Google Apps Script in [`etl/`](etl/README.md), which sends them to Neon through `fin_ingest_email_transactions` (`db/002_email_ingest.sql`).
