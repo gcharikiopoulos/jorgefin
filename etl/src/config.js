@@ -4,7 +4,6 @@
 //                           password already URL-encoded. NEON_PASSWORD wins if both are set.
 //   ALERT_SENDERS           comma-separated sender addresses of the bank alert emails
 //   GMAIL_LABEL             optional Gmail label to search in, e.g. Banks
-//   BACKFILL_DAYS           how far back the first run looks (default 30)
 //
 // Progress is kept in the script property LAST_RUN_AT (set by the script). Gmail
 // groups these alerts into long threads and labels apply to whole threads, so
@@ -18,6 +17,7 @@ const NEON_DATABASE = 'neondb';
 
 const OVERLAP_HOURS = 24; // re-read the last day on every run, in case an email arrived late
 const MAX_THREADS_PER_RUN = 200;
+const FIRST_RUN_DAYS = 400; // with no cursor yet (first run, or after resetCursor), look back this far
 
 function getConfig() {
   const props = PropertiesService.getScriptProperties();
@@ -32,7 +32,6 @@ function getConfig() {
     connectionString,
     senders,
     label: (props.getProperty('GMAIL_LABEL') || '').trim(),
-    backfillDays: Number(props.getProperty('BACKFILL_DAYS')) || 30,
     lastRunAt: props.getProperty('LAST_RUN_AT'),
   };
 }

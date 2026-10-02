@@ -1,9 +1,9 @@
 // Entry points. Run them from the Apps Script editor:
-//   dryRun()          parse matching emails and log the result; writes nothing, labels nothing
-//   run()             parse, send to Neon, label the emails (what the trigger calls)
+//   dryRun()          parse matching emails and log the result; writes nothing
+//   run()             parse and send to Neon (what the trigger calls)
 //   testConnection()  check the Neon credential
 //   installTrigger()  run() every hour;  removeTriggers() to stop
-//   resetCursor()     make the next run look back BACKFILL_DAYS again
+//   resetCursor()     make the next run look back FIRST_RUN_DAYS again
 
 function run() {
   return process_({ dryRun: false });
@@ -42,7 +42,7 @@ function process_({ dryRun }) {
     const startedAt = new Date();
     const since = config.lastRunAt
       ? new Date(new Date(config.lastRunAt).getTime() - OVERLAP_HOURS * 3600e3)
-      : new Date(startedAt.getTime() - config.backfillDays * 86400e3);
+      : new Date(startedAt.getTime() - FIRST_RUN_DAYS * 86400e3);
     const query = [
       `from:(${config.senders.join(' OR ')})`,
       config.label ? `label:${quoteLabel_(config.label)}` : '',
@@ -98,7 +98,7 @@ function quoteLabel_(label) {
   return label.trim().replace(/[\s/]+/g, '-');
 }
 
-// Clears the cursor so the next run backfills BACKFILL_DAYS again (already-loaded emails are skipped by the database).
+// Clears the cursor so the next run looks back FIRST_RUN_DAYS again (already-loaded emails are skipped by the database).
 function resetCursor() {
   PropertiesService.getScriptProperties().deleteProperty('LAST_RUN_AT');
   Logger.log('Cursor cleared');

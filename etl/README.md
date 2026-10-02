@@ -59,11 +59,10 @@ A debit-card purchase triggers both alerts within seconds, and the same payment 
    | `NEON_PASSWORD` | the `etl_ingest` password, exactly as you set it (special characters are fine; the script encodes it) |
    | `ALERT_SENDERS` | `alerts@alpha.gr,ebanking@alpha.gr` |
    | `GMAIL_LABEL` | `03.Banks` (optional: only search under this label) |
-   | `BACKFILL_DAYS` | optional, how far back the first run looks; default `30`. Set it to `400` once to import older alerts. |
 
-4. **Check.** Run `testConnection()`; the log should say `Connected as etl_ingest`. Then run `dryRun()` and compare the logged transactions with the emails. It writes and labels nothing.
+4. **Check.** Run `testConnection()`; the log should say `Connected as etl_ingest`. Then run `dryRun()` and compare the logged transactions with the emails. It writes nothing. The first run looks back 400 days (`FIRST_RUN_DAYS` in `src/config.js`); later runs continue from the last one.
 
-5. **Go live.** Run `run()` once, check the web app, then run `installTrigger()` so it runs every hour. `removeTriggers()` stops it. `resetCursor()` makes the next run look back `BACKFILL_DAYS` again; emails already loaded are skipped.
+5. **Go live.** Run `run()` once, check the web app, then run `installTrigger()` so it runs every hour. `removeTriggers()` stops it. `resetCursor()` makes the next run look back 400 days again; emails already loaded are skipped.
 
 ## Tests
 
