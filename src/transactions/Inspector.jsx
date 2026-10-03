@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Box, Button, IconButton, Stack, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { useDataProvider, useNotify, useRefresh } from 'react-admin';
+import { useDataProvider, useListContext, useNotify, useRefresh } from 'react-admin';
 import CloseIcon from '@mui/icons-material/Close';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
@@ -32,6 +32,7 @@ function useHistory(transaction) {
 
 function History({ transaction }) {
   const query = useHistory(transaction);
+  const { setFilters } = useListContext();
   if (!query.data) return null;
   const rows = query.data;
   const end = parseDate(transaction.txn_date);
@@ -55,6 +56,11 @@ function History({ transaction }) {
       <Mono component="div" sx={{ fontSize: 13, color: 'cockpit.tx3', mt: 0.75, '& b': { color: 'cockpit.tx', fontWeight: 600 } }}>
         <b>{rows.length}</b> {rows.length === 1 ? 'time' : 'times'} · avg <b>{amount(avg)}</b> · first <b>{formatDate(first.txn_date)}</b>
       </Mono>
+      {rows.length > 1 && (
+        <Button size="small" onClick={() => setFilters({ description_norm: transaction.description_norm })} sx={{ mt: 0.5, px: 0, minHeight: 32 }}>
+          Show all {rows.length} transactions ›
+        </Button>
+      )}
     </Box>
   );
 }

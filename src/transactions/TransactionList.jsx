@@ -83,7 +83,7 @@ function FilterRail({ searchRef, rows }) {
   const uncatOnly = filterValues.category_id === 'none';
   // On phones the filters fold away behind one button; search stays visible.
   const [open, setOpen] = useState(false);
-  const active = ['month', 'category_id', 'txn_type', 'source', 'direction'].filter((k) => filterValues[k] != null && filterValues[k] !== '').length;
+  const active = ['month', 'category_id', 'txn_type', 'source', 'direction', 'description_norm'].filter((k) => filterValues[k] != null && filterValues[k] !== '').length;
   const inflow = rows.filter((r) => r.direction === 'credit').reduce((s, r) => s + num(r.signed_amount), 0);
   const outflow = rows.filter((r) => r.direction !== 'credit').reduce((s, r) => s + num(r.signed_amount), 0);
   const uncatCount = rows.filter((r) => r.category_id == null).length;
@@ -122,6 +122,13 @@ function FilterRail({ searchRef, rows }) {
         {!uncatOnly && uncatCount > 0 && <Mono sx={{ fontSize: 13, fontWeight: 600, color: 'cockpit.warn' }}>{uncatCount}</Mono>}
       </Box>
       </Box>
+      {filterValues.description_norm && (
+        <Box component="button" type="button" onClick={() => set('description_norm', '')} title="Clear this filter"
+          sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, minHeight: CONTROL, px: 1.25, font: 'inherit', fontSize: 14, cursor: 'pointer', borderRadius: '8px', border: 1, borderColor: 'primary.main', bgcolor: 'cockpit.hatch', color: 'cockpit.tx', maxWidth: '100%', textAlign: 'left' }}>
+          <span>Same description: <b>{filterValues.description_norm}</b></span>
+          <Box component="span" aria-hidden sx={{ color: 'cockpit.tx3', fontSize: 16 }}>×</Box>
+        </Box>
+      )}
       <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'block' } }} />
       <Mono sx={{ display: { xs: 'none', md: 'flex' }, gap: 2, fontSize: 13.5, color: 'cockpit.tx3', '& b': { fontWeight: 600 } }}>
         <span><Box component="b" sx={{ color: 'cockpit.tx' }}>{rows.length < (total ?? 0) ? `${rows.length} of ${total}` : total ?? 0}</Box> rows</span>
@@ -262,7 +269,7 @@ function Ledger() {
                 <Box component="th" sx={{ ...th, ...hideXs, width: 72 }}>Time</Box>
                 <Box component="th" sx={th}>Merchant · bank description</Box>
                 <Box component="th" sx={{ ...th, ...hideSm, width: 130 }}>Type</Box>
-                <Box component="th" sx={{ ...th, width: { xs: 112, sm: 170 } }}>Category</Box>
+                <Box component="th" sx={{ ...th, width: { xs: 120, sm: 190 } }}>Category</Box>
                 <Box component="th" sx={{ ...th, ...hideSm, width: 84 }}>Source</Box>
                 <Box component="th" sx={{ ...th, width: { xs: 104, sm: 112 }, textAlign: 'right' }}>Amount €</Box>
               </tr>
@@ -305,7 +312,7 @@ function Ledger() {
                             {extra && <Mono sx={{ fontSize: 13, color: 'cockpit.tx3', ml: 1, display: { xs: 'none', sm: 'inline' } }}>{extra}</Mono>}
                           </Box>
                           <Box component="td" sx={{ ...td, ...hideSm, fontSize: 13.5, color: 'cockpit.tx2' }}>{txnTypeLabel(r.txn_type)}</Box>
-                          <Box component="td" sx={td}><CategoryTag categoryId={r.category_id} name={r.category} color={r.color} /></Box>
+                          <Box component="td" sx={{ ...td, whiteSpace: 'normal', overflow: 'visible', py: 0.5, px: { xs: 0.75, sm: 1.5 } }}><CategoryTag wrap categoryId={r.category_id} name={r.category} color={r.color} /></Box>
                           <Box component="td" sx={{ ...td, ...hideSm, ...monoSx, fontSize: 13, color: 'cockpit.tx3' }}>{sourceShort(r.source)}</Box>
                           <Box component="td" sx={{ ...td, ...monoSx, fontSize: 14, fontWeight: 600, textAlign: 'right', color: r.direction === 'credit' ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(r.signed_amount)}</Box>
                         </Box>
