@@ -107,7 +107,7 @@ function ReviewBody() {
           <thead><tr>
             <SortHead field="sample_description">Description</SortHead>
             <SortHead field="txn_count" sx={{ width: 64, textAlign: 'right' }}>Count</SortHead>
-            <Box component="th" sx={{ ...thSx, ...hideBelowSm, width: 96 }}>Out · in</Box>
+            <SortHead field="debit_count" sx={{ ...hideBelowSm, width: 96 }}>Out · in</SortHead>
             <SortHead field="last_seen" sx={{ ...hideBelowMd, width: 150 }}>Seen</SortHead>
             <SortHead field="net_amount" sx={{ width: 100, textAlign: 'right' }}>Net €</SortHead>
           </tr></thead>

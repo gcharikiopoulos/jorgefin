@@ -20,6 +20,7 @@ import { CATEGORY_SWATCHES, amount, categoryColor, categoryTree, formatShortMont
 import { useCategories, useMonths, useRefreshAfterWrite } from '../hooks.js';
 import { hideBelowMd, hideBelowSm, isTyping, rowSx, tableSx, tdSx, thSx } from '../components/dense.js';
 import { Label, Mono } from '../dashboard/parts.jsx';
+import { SortTh, sortRows } from '../components/SortTh.jsx';
 import { monoSx } from '../theme.js';
 import { num } from '../backend.js';
 
@@ -329,6 +330,9 @@ export function CategoryList() {
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState(null);
   const categories = categoriesQuery.data || [];
+  // null = your own order (the up/down arrows); a third click on a column returns to it.
+  const [catSort, setCatSort] = useState(null);
+  const onCatSort = (next) => setCatSort((cur) => (cur && cur.field === next.field && next.order === (next.field === 'name' ? 'ASC' : 'DESC') ? null : next));
 
   useEffect(() => {
     const onKey = (e) => {
@@ -356,7 +360,7 @@ export function CategoryList() {
   };
 
   const open = categories.find((c) => c.id === openId) || null;
-  const rowProps = { usage, totals, busy, onMove: move, onOpen: (c) => setOpenId((id) => (id === c.id ? null : c.id)), onEdit: (c) => setEditing({ ...c }), onDelete: setDeleting, onAddChild: (p) => setEditing({ name: '', kind: p.kind, parent_id: p.id, color: null }) };
+  const rowProps = { usage, totals, busy: busy || !!catSort, onMove: move, onOpen: (c) => setOpenId((id) => (id === c.id ? null : c.id)), onEdit: (c) => setEditing({ ...c }), onDelete: setDeleting, onAddChild: (p) => setEditing({ name: '', kind: p.kind, parent_id: p.id, color: null }) };
   const monthLabel = month ? formatShortMonth(month) : '';
   const subCount = categories.filter((c) => c.parent_id != null).length;
 
@@ -386,6 +390,10 @@ export function CategoryList() {
             const parentTotal = (p) => [p, ...p.children].reduce((s, c) => s + (totals?.get(c.id) || 0), 0);
             const kindTotal = tree.reduce((s, p) => s + parentTotal(p), 0);
             const maxTotal = Math.max(...tree.map(parentTotal), 1);
+            // A parent's figures include its subcategories, as in its row.
+            const figure = (c, map) => [c, ...(c.children || [])].reduce((sum, x) => sum + (map?.get(x.id) || 0), 0);
+            const get = { name: (c) => c.name, total: (c) => figure(c, totals) || null, share: (c) => figure(c, totals) || null, pct: (c) => figure(c, totals) || null, count: (c) => figure(c, usage) || null };
+            const shown = catSort ? sortRows(tree, catSort, get).map((p) => ({ ...p, children: sortRows(p.children, catSort, get) })) : tree;
             return (
               <Box key={kind} component="section" aria-label={title} sx={{ bgcolor: 'cockpit.panel', borderRadius: '14px', overflow: 'hidden' }}>
                 <Stack direction="row" sx={{ alignItems: 'center', gap: 1, height: 52, px: 2 }}>
@@ -396,15 +404,15 @@ export function CategoryList() {
                 </Stack>
                 <Box component="table" sx={tableSx}>
                   <thead><tr>
-                    <Box component="th" sx={{ ...thSx, pl: 1.5 }}>Name</Box>
-                    <Box component="th" sx={{ ...thSx, ...hideBelowSm, width: '22%' }}>Share in {monthLabel}</Box>
-                    <Box component="th" sx={{ ...thSx, width: 96, textAlign: 'right' }}>{monthLabel} €</Box>
-                    <Box component="th" sx={{ ...thSx, ...hideBelowMd, width: 72, textAlign: 'right' }}>%</Box>
-                    <Box component="th" sx={{ ...thSx, width: 64, textAlign: 'right' }} title="All transactions, every month">Count</Box>
+                    <SortTh field="name" first="ASC" sort={catSort} onSort={onCatSort} sx={thSx}>Name</SortTh>
+                    <SortTh field="share" sort={catSort} onSort={onCatSort} sx={{ ...thSx, ...hideBelowSm, width: '22%' }}>Share in {monthLabel}</SortTh>
+                    <SortTh field="total" sort={catSort} onSort={onCatSort} sx={{ ...thSx, width: 104, textAlign: 'right' }}>{monthLabel} €</SortTh>
+                    <SortTh field="pct" sort={catSort} onSort={onCatSort} sx={{ ...thSx, ...hideBelowMd, width: 72, textAlign: 'right' }}>%</SortTh>
+                    <SortTh field="count" sort={catSort} onSort={onCatSort} sx={{ ...thSx, width: 92, textAlign: 'right' }} title="All transactions, every month">Count</SortTh>
                     <Box component="th" sx={{ ...thSx, width: { xs: 52, md: 150 } }}><Box component="span" sx={visuallyHidden}>Actions</Box></Box>
                   </tr></thead>
                   <tbody>
-                    {tree.map((parent, i) => [
+                    {shown.map((parent, i) => [
                       <CategoryRow key={parent.id} category={parent} first={i === 0} last={i === tree.length - 1} selected={openId === parent.id} kindTotal={kindTotal} maxTotal={maxTotal} {...rowProps} />,
                       ...parent.children.map((child, j) => (
                         <CategoryRow key={child.id} category={child} child first={j === 0} last={j === parent.children.length - 1} selected={openId === child.id} kindTotal={kindTotal} maxTotal={maxTotal} {...rowProps} />
