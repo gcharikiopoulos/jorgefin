@@ -215,6 +215,7 @@ function KpiRow({ months, index, txQuery }) {
 
 const svgBox = { position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' };
 
+// Two lines: day-to-day cash, and savings + investments (investments at cost).
 function BalanceChart({ month }) {
   const c = useTheme().palette.cockpit;
   const query = useBalance();
@@ -223,32 +224,40 @@ function BalanceChart({ month }) {
       {(rows) => {
         const upTo = rows.filter((r) => r.month <= month);
         const w = (upTo.length ? upTo : rows).slice(-12);
-        const vals = w.map((r) => r.balance);
-        const step = niceTicks(Math.max(...vals) - Math.min(...vals) || Math.max(...vals), 4).ticks[1] || 500;
-        const lo = Math.floor(Math.min(...vals) / step) * step - step / 2, hi = Math.ceil(Math.max(...vals) / step) * step;
+        const series = [
+          { key: 'saved', label: 'SAVINGS & INV.', color: c.pos },
+          { key: 'cash', label: 'CASH', color: c.acc },
+        ].filter((s) => w.some((r) => r[s.key]));
+        const vals = series.flatMap((s) => w.map((r) => r[s.key]));
+        const max = Math.max(...vals, 0), min = Math.min(...vals, 0);
+        const step0 = niceTicks(max - min || 1, 4).ticks[1] || 1;
+        const lo = min < 0 ? Math.floor(min / step0) * step0 : 0;
+        const { ticks, top } = niceTicks(max - lo || 1, 4);
+        const hi = lo + top;
         const n = Math.max(w.length - 1, 1);
         const X = (i) => (i / n) * 1000, Y = (v) => 6 + (1 - (v - lo) / (hi - lo || 1)) * 168;
-        const line = 'M' + vals.map((v, i) => `${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' L');
-        const ticks = [];
-        for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) ticks.push(t);
-        const minI = vals.indexOf(Math.min(...vals));
+        const line = (key) => 'M' + w.map((r, i) => `${X(i).toFixed(1)} ${Y(r[key]).toFixed(1)}`).join(' L');
         const last = w[w.length - 1];
         return (
           <Box sx={{ position: 'relative', height: 180, m: '12px 54px 24px 12px' }}>
             <svg viewBox="0 0 1000 180" preserveAspectRatio="none" style={svgBox} aria-hidden>
-              <path d={ticks.map((t) => `M0 ${Y(t).toFixed(1)} H1000`).join(' ')} stroke={c.line} fill="none" vectorEffect="non-scaling-stroke" />
-              <path d={`${line} L1000 180 L0 180 Z`} fill={c.acc} opacity={0.12} />
-              <path d={line} stroke={c.acc} strokeWidth={1.75} fill="none" vectorEffect="non-scaling-stroke" />
+              <path d={ticks.map((t) => `M0 ${Y(lo + t).toFixed(1)} H1000`).join(' ')} stroke={c.line} fill="none" vectorEffect="non-scaling-stroke" />
+              {series.map((s) => <path key={s.key} d={line(s.key)} stroke={s.color} strokeWidth={1.75} fill="none" vectorEffect="non-scaling-stroke" />)}
             </svg>
-            {ticks.map((t) => <Mono key={t} sx={{ position: 'absolute', right: -50, top: `${(Y(t) / 180) * 100}%`, transform: 'translateY(-50%)', fontSize: 11, color: 'cockpit.tx3' }}>{axisAmount(t)}</Mono>)}
+            {ticks.map((t) => <Mono key={t} sx={{ position: 'absolute', right: -50, top: `${(Y(lo + t) / 180) * 100}%`, transform: 'translateY(-50%)', fontSize: 11, color: 'cockpit.tx3' }}>{axisAmount(lo + t)}</Mono>)}
             {w.map((r, i) => (
               <Box key={r.month}>
-                <Box title={`${formatMonth(r.month)} · ${amount(r.balance)} €`} sx={{ position: 'absolute', left: `${X(i) / 10}%`, top: `${(Y(r.balance) / 180) * 100}%`, width: 5, height: 5, m: '-3px 0 0 -3px', borderRadius: '50%', bgcolor: 'cockpit.panel', border: 1, borderColor: 'primary.main' }} />
+                {series.map((s) => (
+                  <Box key={s.key} title={`${formatMonth(r.month)} · cash ${amount(r.cash)} € · savings & investments ${amount(r.saved)} € · total ${amount(r.balance)} €`}
+                    sx={{ position: 'absolute', left: `${X(i) / 10}%`, top: `${(Y(r[s.key]) / 180) * 100}%`, width: 5, height: 5, m: '-3px 0 0 -3px', borderRadius: '50%', bgcolor: 'cockpit.panel', border: 1, borderColor: s.color }} />
+                ))}
                 <Mono sx={{ position: 'absolute', left: `${X(i) / 10}%`, bottom: -18, transform: 'translateX(-50%)', fontSize: 10.5, color: i === w.length - 1 ? 'cockpit.tx' : 'cockpit.tx3', whiteSpace: 'nowrap' }}>{formatShortMonth(r.month)}</Mono>
               </Box>
             ))}
-            <Mono sx={{ position: 'absolute', left: '100%', top: `${(Y(last.balance) / 180) * 100}%`, transform: 'translate(-100%, -150%)', fontSize: 11, px: 0.5, borderRadius: '2px', bgcolor: 'primary.main', color: '#fff', whiteSpace: 'nowrap' }}>{amount(last.balance)}</Mono>
-            {minI !== w.length - 1 && <Mono sx={{ position: 'absolute', left: `${X(minI) / 10}%`, top: `${(Y(vals[minI]) / 180) * 100}%`, transform: 'translate(4px, 6px)', fontSize: 11, color: 'cockpit.tx3', whiteSpace: 'nowrap' }}>LO {amount(vals[minI])}</Mono>}
+            <Mono component="div" sx={{ position: 'absolute', left: 4, top: 0, display: 'flex', flexDirection: 'column', gap: '1px', fontSize: 11, bgcolor: 'cockpit.panel', px: 0.5, py: '2px', border: 1, borderColor: 'cockpit.line', '& i': { display: 'inline-block', width: 10, height: 2, verticalAlign: 'middle', mr: 0.5 } }}>
+              {series.map((s) => <span key={s.key}><i style={{ background: s.color }} />{s.label} <b>{amount(last[s.key])}</b></span>)}
+              <Box component="span" sx={{ color: 'cockpit.tx2' }}>TOTAL {amount(last.balance)}</Box>
+            </Mono>
           </Box>
         );
       }}
@@ -843,7 +852,7 @@ export function Dashboard() {
       </Panel>
 
       <Box sx={rowSx}>
-        <Panel id="panel-2" num={2} title="Balance" meta="end of month" sx={span(12, 5)}><BalanceChart month={month} /></Panel>
+        <Panel id="panel-2" num={2} title="Balance" meta="end of month · investments at cost" sx={span(12, 5)}><BalanceChart month={month} /></Panel>
         <Panel id="panel-3" num={3} title="Spend pace" meta="cumulative" sx={span(7, 4)}><SpendPace months={months} index={index} /></Panel>
         <Panel id="panel-4" num={4} title="Month ledger" right={<Label>{month === thisMonth() ? `Day ${new Date().getDate()}/${days}` : `${days} days`}</Label>} sx={span(5, 3)}>
           <MonthLedger months={months} index={index} txQuery={txQuery} />
