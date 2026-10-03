@@ -137,7 +137,7 @@ function StatusBar() {
       <span><Box component="span" sx={{ color: online ? 'cockpit.pos' : 'cockpit.warn' }}>●</Box> {online ? 'ONLINE' : 'OFFLINE · CACHED'}</span>
       {isMock && <span>DEMO DATA</span>}
       <Box sx={{ flexGrow: 1 }} />
-      {pathname === '/' && <span><Kbd>1</Kbd>–<Kbd>8</Kbd> panel</span>}
+      {pathname === '/' && <span><Kbd>1</Kbd>–<Kbd>9</Kbd> panel</span>}
       <span><Kbd>G</Kbd> <Kbd>O</Kbd>/<Kbd>T</Kbd>/<Kbd>R</Kbd>/<Kbd>C</Kbd> section</span>
       <span>EUR · el-GR</span>
       <span>v{version}</span>

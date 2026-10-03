@@ -9,7 +9,7 @@ import { GridLines, KpiTile, Label, Light, Mono, Panel, QueryState, delta, niceT
 import { useCategories, useMonths } from '../hooks.js';
 import { checkAccess, num } from '../backend.js';
 import {
-  REST_COLOR, amount, axisAmount, categoryColor, formatDayMonth, formatMonth, formatShortMonth, formatTime, parseDate, percent, signedAmount, sourceShort, txnName, txnTypeLabel,
+  REST_COLOR, amount, axisAmount, categoryColor, seriesColor, formatDayMonth, formatMonth, formatShortMonth, formatTime, parseDate, percent, signedAmount, sourceShort, txnName, txnTypeLabel,
 } from '../format.js';
 import { monoSx } from '../theme.js';
 import { CategoryTag } from '../components/CategoryTag.jsx';
@@ -407,6 +407,123 @@ function CashFlow({ months, index, onPick }) {
   );
 }
 
+// Running income and expenses through one calendar year: two lines from 0 on
+// 1 January, the gap between them shaded as savings (or overspend where expenses
+// lead). Points sit at each month end; the x-axis always spans the whole year.
+const MONTH_INITIALS = Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat('el-GR', { month: 'short' }).format(new Date(2021, i, 1)).replace('.', '').toUpperCase());
+
+function yearSeries(months, year) {
+  const byMonth = new Map(months.filter((r) => r.month.startsWith(`${year}-`)).map((r) => [Number(r.month.slice(5, 7)) - 1, r]));
+  const last = Math.max(-1, ...byMonth.keys());
+  // Lines start where the data does (a year imported from November starts there,
+  // not as a flat zero from January).
+  const first = byMonth.size ? Math.min(...byMonth.keys()) : 0;
+  const income = [0], expenses = [0];
+  for (let i = 0; i <= last; i++) {
+    const r = byMonth.get(i);
+    income.push(income[i] + (r ? num(r.income) : 0));
+    expenses.push(expenses[i] + (r ? num(r.expenses) : 0));
+  }
+  return { income, expenses, first, last };
+}
+
+// Shaded gap between two series (in data units), split where they cross so each
+// piece has one sign: true where a (income) is ahead.
+function gapPieces(xs, a, b) {
+  const pieces = [];
+  for (let i = 0; i < xs.length - 1; i++) {
+    const d0 = a[i] - b[i], d1 = a[i + 1] - b[i + 1];
+    const seg = (x0, a0, b0, x1, a1, b1, sign) => pieces.push({ sign, pts: [[x0, a0], [x1, a1], [x1, b1], [x0, b0]] });
+    if (d0 * d1 < 0) {
+      const t = d0 / (d0 - d1);
+      const xm = xs[i] + t * (xs[i + 1] - xs[i]), ym = a[i] + t * (a[i + 1] - a[i]);
+      seg(xs[i], a[i], b[i], xm, ym, ym, d0 > 0);
+      seg(xm, ym, ym, xs[i + 1], a[i + 1], b[i + 1], d1 > 0);
+    } else seg(xs[i], a[i], b[i], xs[i + 1], a[i + 1], b[i + 1], d0 + d1 >= 0);
+  }
+  return pieces;
+}
+
+function YearToDate({ months, index }) {
+  const theme = useTheme();
+  const c = theme.palette.cockpit;
+  const mode = theme.palette.mode;
+  const years = [...new Set(months.map((r) => r.month.slice(0, 4)))].sort().reverse();
+  const [year, setYear] = useState(null);
+  const shownYear = year ?? months[index].month.slice(0, 4);
+  const [hover, setHover] = useState(null);
+  const { income, expenses, first, last } = yearSeries(months, shownYear);
+  const incColor = seriesColor(0, mode), expColor = seriesColor(1, mode);
+  const { ticks, top } = niceTicks(Math.max(...income, ...expenses, 1), 4);
+  const X = (i) => (i / 12) * 1000, Y = (v) => 200 - (v / top) * 192;
+  const idx = income.map((_, i) => i).slice(first);
+  const path = (arr) => 'M' + idx.map((i) => `${X(i).toFixed(1)} ${Y(arr[i]).toFixed(1)}`).join(' L');
+  const pieces = gapPieces(idx.map(X), idx.map((i) => income[i]), idx.map((i) => expenses[i]));
+  const at = hover ?? last + 1; // point index: 1 = end of January
+  const inc = income[at] ?? 0, exp = expenses[at] ?? 0, saved = inc - exp;
+  const pct = (v) => `${(v / 200) * 100}%`;
+  if (last < 0) return <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>No data for {shownYear}.</Typography>;
+  return (
+    <>
+      <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5, flexWrap: 'wrap', minHeight: 34, px: 1.5, py: 0.5, bgcolor: 'cockpit.panel2', borderBottom: 1, borderColor: 'cockpit.line' }}>
+        <Mono sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', fontSize: 12, color: 'cockpit.tx3', '& b': { color: 'cockpit.tx', fontWeight: 600 } }}>
+          <Box component="span" sx={{ fontWeight: 700, color: 'cockpit.accText' }}>▸ {at === 0 ? `1 ${MONTH_INITIALS[0]}` : `${MONTH_INITIALS[at - 1]} ${shownYear}`}</Box>
+          <span>IN <b>{amount(inc)}</b></span>
+          <span>OUT <b>{amount(exp)}</b></span>
+          <span>SAVED <Box component="b" sx={{ color: saved >= 0 ? 'cockpit.pos !important' : 'cockpit.neg !important' }}>{signedAmount(saved)}</Box></span>
+          {inc > 0 && <span>RATE <b>{percent(saved / inc, 1)}</b></span>}
+        </Mono>
+        <Box sx={{ flexGrow: 1 }} />
+        {years.length > 1 && (
+          <Stack direction="row" role="group" aria-label="Year" sx={{ gap: 0.5 }}>
+            {years.slice(0, 4).map((y) => (
+              <Box key={y} component="button" type="button" aria-pressed={y === shownYear} onClick={() => { setYear(y); setHover(null); }}
+                sx={{ ...monoSx, minHeight: { xs: 40, md: 26 }, px: 1.25, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', borderRadius: '3px', border: 1, borderColor: y === shownYear ? 'primary.main' : 'cockpit.line2', bgcolor: y === shownYear ? 'primary.main' : 'transparent', color: y === shownYear ? '#fff' : 'cockpit.tx2' }}>
+                {y}
+              </Box>
+            ))}
+          </Stack>
+        )}
+      </Stack>
+      <Box sx={{ position: 'relative', height: { xs: 200, md: 230 }, m: '14px 60px 26px 12px' }} onMouseLeave={() => setHover(null)}>
+        <svg viewBox="0 0 1000 200" preserveAspectRatio="none" style={svgBox} aria-hidden>
+          <path d={ticks.map((t) => `M0 ${Y(t).toFixed(1)} H1000`).join(' ')} stroke={c.line} fill="none" vectorEffect="non-scaling-stroke" />
+          {pieces.map((p, i) => <path key={i} d={'M' + p.pts.map(([x, v]) => `${x.toFixed(1)} ${Y(v).toFixed(1)}`).join(' L') + ' Z'} fill={p.sign ? c.pos : c.neg} opacity={0.14} />)}
+          {hover != null && <path d={`M${X(hover)} 0 V200`} stroke={c.tx3} strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />}
+          <path d={path(expenses)} stroke={expColor} strokeWidth={2} fill="none" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+          <path d={path(income)} stroke={incColor} strokeWidth={2} fill="none" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+        </svg>
+        {ticks.map((t) => <Mono key={t} sx={{ position: 'absolute', right: -54, top: pct(Y(t)), transform: 'translateY(-50%)', fontSize: 11, color: 'cockpit.tx3' }}>{axisAmount(t)}</Mono>)}
+        {MONTH_INITIALS.map((m, i) => (
+          <Mono key={m} sx={{ position: 'absolute', left: `${(X(i + 1) / 10)}%`, bottom: -22, transform: 'translateX(-50%)', fontSize: 10.5, color: i >= first && i <= last ? (i + 1 === at ? 'cockpit.tx' : 'cockpit.tx3') : 'cockpit.line2', fontWeight: i + 1 === at ? 700 : 400, display: { xs: i % 3 === 2 ? 'block' : 'none', sm: 'block' } }}>{m}</Mono>
+        ))}
+        {/* Markers on the readout point, with a 2px surface ring. */}
+        {[[income, incColor], [expenses, expColor]].map(([arr, col]) => (
+          <Box key={col} sx={{ position: 'absolute', left: `${X(at) / 10}%`, top: pct(Y(arr[at])), width: 9, height: 9, m: '-4.5px 0 0 -4.5px', borderRadius: '50%', bgcolor: col, boxShadow: `0 0 0 2px ${c.panel}`, pointerEvents: 'none' }} />
+        ))}
+        {/* Direct labels at the ends of the lines. */}
+        {[[income, incColor, 'IN'], [expenses, expColor, 'OUT']].map(([arr, col, label]) => {
+          const other = arr === income ? expenses : income;
+          const above = arr[last + 1] >= other[last + 1];
+          return (
+            <Mono key={label} sx={{ position: 'absolute', left: `${X(last + 1) / 10}%`, top: pct(Y(arr[last + 1])), transform: `translate(${last + 1 >= 10 ? 'calc(-100% - 10px)' : '8px'}, ${above ? '-120%' : '20%'})`, fontSize: 11, fontWeight: 600, color: 'cockpit.tx', whiteSpace: 'nowrap', pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Box component="span" sx={{ width: 10, height: 2, bgcolor: col }} />{label} {amount(arr[last + 1])}
+            </Mono>
+          );
+        })}
+        {/* Hover targets: one column per month end, wider than the marks. */}
+        <Box sx={{ position: 'absolute', inset: 0, display: 'flex' }}>
+          {MONTH_INITIALS.map((m, i) => (
+            <Box key={m} title={i >= first && i <= last ? `${MONTH_INITIALS[i]} ${shownYear}: in ${amount(income[i + 1])} · out ${amount(expenses[i + 1])}` : undefined}
+              onMouseEnter={() => i >= first && i <= last && setHover(i + 1)} onClick={() => i >= first && i <= last && setHover(i + 1)}
+              sx={{ flex: '1 1 0', cursor: i >= first && i <= last ? 'crosshair' : 'default' }} />
+          ))}
+        </Box>
+      </Box>
+    </>
+  );
+}
+
 function CategoryTable({ months, index }) {
   const theme = useTheme();
   const dataProvider = useDataProvider();
@@ -653,12 +770,12 @@ function EmptyOrDenied() {
 const span = (md, lg) => ({ gridColumn: { xs: '1 / -1', md: `span ${md}`, lg: `span ${lg}` } });
 const rowSx = { display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(12, minmax(0, 1fr))' }, gap: '8px' };
 
-// Number keys 1–8 jump to a panel (outside text fields).
+// Number keys 1–9 jump to a panel (outside text fields).
 function usePanelKeys() {
   useEffect(() => {
     const onKey = (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable) return;
-      const el = /^[1-8]$/.test(e.key) && document.getElementById(`panel-${e.key}`);
+      const el = /^[1-9]$/.test(e.key) && document.getElementById(`panel-${e.key}`);
       if (el) { el.focus({ preventScroll: true }); el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
     };
     window.addEventListener('keydown', onKey);
@@ -674,6 +791,7 @@ export function Dashboard() {
   const txQuery = useMonthTransactions(month);
   const navigate = useNavigate();
   const dailyQuery = useDaily(month);
+  const theme = useTheme();
   usePanelKeys();
   const daily = useMemo(() => {
     if (!dailyQuery.data || !month) return null;
@@ -715,34 +833,43 @@ export function Dashboard() {
       <Annunciator months={months} index={index} txQuery={txQuery} />
       <KpiRow months={months} index={index} txQuery={txQuery} />
 
+      <Panel id="panel-1" num={1} title="Year to date" meta="running income and expenses"
+        right={<Label sx={{ display: { xs: 'none', sm: 'flex' }, gap: 1.25, '& i': { display: 'inline-block', width: 12, height: 2, mr: 0.5, verticalAlign: 'middle' } }}>
+          <span><Box component="i" sx={{ bgcolor: seriesColor(0, theme.palette.mode) }} />Income</span>
+          <span><Box component="i" sx={{ bgcolor: seriesColor(1, theme.palette.mode) }} />Expenses</span>
+          <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}><Box component="i" sx={{ bgcolor: 'cockpit.pos', height: '8px !important', opacity: 0.4 }} />Saved</Box>
+        </Label>}>
+        <YearToDate months={months} index={index} />
+      </Panel>
+
       <Box sx={rowSx}>
-        <Panel id="panel-1" num={1} title="Balance" meta="end of month" sx={span(12, 5)}><BalanceChart month={month} /></Panel>
-        <Panel id="panel-2" num={2} title="Spend pace" meta="cumulative" sx={span(7, 4)}><SpendPace months={months} index={index} /></Panel>
-        <Panel id="panel-3" num={3} title="Month ledger" right={<Label>{month === thisMonth() ? `Day ${new Date().getDate()}/${days}` : `${days} days`}</Label>} sx={span(5, 3)}>
+        <Panel id="panel-2" num={2} title="Balance" meta="end of month" sx={span(12, 5)}><BalanceChart month={month} /></Panel>
+        <Panel id="panel-3" num={3} title="Spend pace" meta="cumulative" sx={span(7, 4)}><SpendPace months={months} index={index} /></Panel>
+        <Panel id="panel-4" num={4} title="Month ledger" right={<Label>{month === thisMonth() ? `Day ${new Date().getDate()}/${days}` : `${days} days`}</Label>} sx={span(5, 3)}>
           <MonthLedger months={months} index={index} txQuery={txQuery} />
         </Panel>
       </Box>
 
       <Box sx={rowSx}>
-        <Panel id="panel-4" num={4} title="Cash flow" meta="click a month"
+        <Panel id="panel-5" num={5} title="Cash flow" meta="click a month"
           right={<Label sx={{ display: 'flex', gap: 1, '& i': { display: 'inline-block', width: 7, height: 7, mr: 0.5 } }}><span><Box component="i" sx={{ bgcolor: 'primary.main' }} />In</span><span><Box component="i" sx={{ bgcolor: 'cockpit.out' }} />Out</span><span><Box component="i" sx={{ bgcolor: 'cockpit.pos', height: '2px !important', verticalAlign: 'middle' }} />Net</span></Label>}
           sx={span(12, 5)}>
           <CashFlow months={months} index={index} onPick={setIndex} />
         </Panel>
-        <Panel id="panel-5" num={5} title="Spending by category" right={<Mono sx={{ fontSize: 12.5, fontWeight: 600 }}>{amount(m.expenses)}</Mono>} sx={span(12, 7)}>
+        <Panel id="panel-6" num={6} title="Spending by category" right={<Mono sx={{ fontSize: 12.5, fontWeight: 600 }}>{amount(m.expenses)}</Mono>} sx={span(12, 7)}>
           <CategoryTable months={months} index={index} />
         </Panel>
       </Box>
 
       <Box sx={rowSx}>
-        <Panel id="panel-6" num={6} title="Daily spending" sx={span(12, 7)}
+        <Panel id="panel-7" num={7} title="Daily spending" sx={span(12, 7)}
           right={daily && <Mono sx={{ fontSize: 11.5, color: 'cockpit.tx3', display: { xs: 'none', sm: 'inline' }, '& b': { color: 'cockpit.tx' } }}>AVG <b>{amount(daily.average)}</b> · PEAK <b>{amount(daily.peak)}</b> · NO-SPEND <b>{daily.zero}d</b></Mono>}>
           <DailySpend month={month} />
         </Panel>
-        <Panel id="panel-7" num={7} title="Top merchants" meta="by spend" sx={span(12, 5)}><TopMerchants query={txQuery} /></Panel>
+        <Panel id="panel-8" num={8} title="Top merchants" meta="by spend" sx={span(12, 5)}><TopMerchants query={txQuery} /></Panel>
       </Box>
 
-      <Panel id="panel-8" num={8} title="Recent transactions" meta={txQuery.data ? `${Math.min(12, txQuery.data.length)} of ${txQuery.data.length}` : null}
+      <Panel id="panel-9" num={9} title="Recent transactions" meta={txQuery.data ? `${Math.min(12, txQuery.data.length)} of ${txQuery.data.length}` : null}
         right={<Button onClick={() => navigate(transactionsLink({ month }))} sx={{ ...monoSx, fontSize: 11.5, minHeight: { xs: 40, md: 28 }, py: 0, letterSpacing: '0.06em' }}>ALL TRANSACTIONS ▸</Button>}>
         <RecentTransactions month={month} query={txQuery} />
       </Panel>
