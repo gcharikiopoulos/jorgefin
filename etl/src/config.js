@@ -2,7 +2,6 @@
 //   NEON_PASSWORD           password of the etl_ingest role (any characters; encoded here)
 //   NEON_CONNECTION_STRING  alternative to NEON_PASSWORD: a full postgresql:// URL with the
 //                           password already URL-encoded. NEON_PASSWORD wins if both are set.
-//   ALERT_SENDERS           comma-separated sender addresses of the bank alert emails
 //
 // Progress is kept in the script property LAST_RUN_AT (set by the script). Gmail
 // groups these alerts into long threads and labels apply to whole threads, so
@@ -24,12 +23,9 @@ function getConfig() {
   const connectionString = password
     ? `postgresql://${NEON_USER}:${encodeURIComponent(password.trim())}@${NEON_HOST}/${NEON_DATABASE}?sslmode=require`
     : (props.getProperty('NEON_CONNECTION_STRING') || '').trim();
-  const senders = (props.getProperty('ALERT_SENDERS') || '').split(',').map((s) => s.trim()).filter(Boolean);
   if (!connectionString) throw new Error('Set the script property NEON_PASSWORD (or NEON_CONNECTION_STRING)');
-  if (!senders.length) throw new Error('Script property ALERT_SENDERS is not set');
   return {
     connectionString,
-    senders,
     lastRunAt: props.getProperty('LAST_RUN_AT'),
   };
 }

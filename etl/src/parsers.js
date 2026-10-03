@@ -95,11 +95,35 @@ function emailText_(email) {
   return normalizeText(flatten_(email.html ? htmlToText_(email.html) : email.body));
 }
 
+// ---- Senders ------------------------------------------------------------------
+// Banks are recognised by the domain of the sender's address, not by the exact
+// address, so a bank moving its alerts to another mailbox (or adding one) keeps
+// working. Any subdomain counts: alerts.alpha.gr, mail.nbg.gr...
+const BANK_DOMAINS = ['alpha.gr', 'piraeusbank.gr', 'nbg.gr'];
+
+// The address part of a From header: "Name <a@b.gr>" -> "a@b.gr".
+function senderAddress_(from) {
+  const m = String(from || '').match(/<([^>]+)>/);
+  return (m ? m[1] : String(from || '')).trim().toLowerCase();
+}
+
+function fromDomain_(from, domain) {
+  const address = senderAddress_(from);
+  const at = address.lastIndexOf('@');
+  if (at < 0) return false;
+  const host = address.slice(at + 1);
+  return host === domain || host.endsWith('.' + domain);
+}
+
+function isBankSender(from) {
+  return BANK_DOMAINS.some((d) => fromDomain_(from, d));
+}
+
 // ---- Alpha Bank parsers ---------------------------------------------------------
 // Each returns null for emails it does not recognise, so unknown formats are
 // reported for review, never guessed.
 
-// Account alert from alerts@alpha.gr:
+// Account alert from Alpha (alerts@alpha.gr):
 //   "Σας ενημερώνουμε ότι την DD/MM/YYYY και ώρα HH:MM, πραγματοποιήθηκε η κάτωθι κίνηση
 //    στον λογαριασμό σας ***NNN * Ειδος κίνησης: <TYPE> * Ποσό: 1.234,56 EUR Χρέωση|Πίστωση"
 const ACCOUNT_ALERT_RE = /ΤΗΝ (\d{1,2}\/\d{1,2}\/\d{4}) ΚΑΙ ΩΡΑ (\d{1,2}:\d{2}).*?ΛΟΓΑΡΙΑΣΜΟ ΣΑΣ (\*+\d+).*?ΕΙΔΟΣ ΚΙΝΗΣΗΣ:\s*(.+?)\s+ΠΟΣΟ:\s*([\d.,]+)\s*([A-Z]{3})\s+(ΧΡΕΩΣΗ|ΠΙΣΤΩΣΗ)/;
@@ -116,7 +140,7 @@ const ACCOUNT_TXN_TYPES = [
 ];
 
 function parseAccountAlert(email) {
-  if (!/alerts@alpha\.gr/i.test(email.from || '')) return null;
+  if (!fromDomain_(email.from, 'alpha.gr')) return null;
   // Account alerts parse reliably from Gmail's plain text, so they keep using it.
   const m = normalizeText(flatten_(email.body)).match(ACCOUNT_ALERT_RE);
   if (!m) return null;
@@ -136,7 +160,7 @@ function parseAccountAlert(email) {
   return txn.txn_date && txn.amount ? [txn] : null;
 }
 
-// Card alert from ebanking@alpha.gr, two layouts:
+// Card alert from Alpha (ebanking@alpha.gr), two layouts:
 //   "...συναλλαγή με τη κάρτα <CARD> με αριθμό ****NNNN στις DD/MM/YYYY HH:MM, αξίας EUR 3,98
 //    στην επιχείρηση <MERCHANT>. Με εκτίμηση"
 //   "...πληρωμή πάγιας εντολής με την κάρτα <CARD> με αριθμό ****NNNN στις DD/MM/YYYY HH:MM,
@@ -145,7 +169,7 @@ function parseAccountAlert(email) {
 const CARD_ALERT_RE = /ΜΕ ΑΡΙΘΜΟ\s*(\*+\d+)\**\s*ΣΤΙΣ\s*\**(\d{1,2}\/\d{1,2}\/\d{4})\s+(\d{1,2}:\d{2})\**\s*,\s*\**(.*?)\**\s*ΑΞΙΑΣ\s*\**([A-Z]{3})\s*([\d.,]+)\**(?:\s*ΣΤΗΝ ΕΠΙΧΕΙΡΗΣΗ\s*\**(.+?)\**)?\s*\.\s*[MΜ][EΕ] ΕΚΤΙΜΗΣΗ/;
 
 function parseCardAlert(email) {
-  if (!/ebanking@alpha\.gr/i.test(email.from || '')) return null;
+  if (!fromDomain_(email.from, 'alpha.gr')) return null;
   const text = emailText_(email);
   const m = text.match(CARD_ALERT_RE);
   if (!m) return null;
@@ -209,7 +233,7 @@ const PIRAEUS_TXN_TYPES = [
 const isReference_ = (s) => !s || /X{4}/.test(s) || /\d{8,}/.test(s.replace(/\s/g, '')) || /^[\d\s.,/-]+$/.test(s) || /^\d+[.,]\d{2}\s*EUR/.test(s);
 
 function parsePiraeusAlert(email) {
-  if (!/piraeusbank\.gr/i.test(email.from || '')) return null;
+  if (!fromDomain_(email.from, 'piraeusbank.gr')) return null;
   const text = emailText_(email);
   if (!text.includes('ΜΕΤΑΒΟΛΗ ΣΤΟ ΥΠΟΛΟΙΠΟ')) return null;
   const f = labelledFields_(text, PIRAEUS_LABELS, PIRAEUS_END);
@@ -248,7 +272,7 @@ function parsePiraeusAlert(email) {
 const NBG_ALERT_RE = /ΣΑΣ ΕΝΗΜΕΡΩΝΟΥΜΕ ΓΙΑ (?:ΤΗΝ )?(.+?) ΠΟΣΟΥ ([\d.,]+) ?(?:€|EUR) (.*?)ΛΟΓΑΡΙΑΣΜΟΥ? (\*+\d+) (\d{1,2}\/\d{1,2}\/\d{4}) (\d{1,2}:\d{2})/;
 
 function parseNbgAlert(email) {
-  if (!/nbg\.gr/i.test(email.from || '')) return null;
+  if (!fromDomain_(email.from, 'nbg.gr')) return null;
   const m = emailText_(email).match(NBG_ALERT_RE);
   if (!m) return null;
   const [, kind, amount, middle, mask, date, time] = m;
@@ -280,11 +304,11 @@ function parseNbgAlert(email) {
   return txn.txn_date && txn.amount ? [txn] : null;
 }
 
-// Emails from the alert senders that are known not to be transactions (they would
+// Emails from the banks that are known not to be transactions (they would
 // otherwise be reported as unrecognised on every run). Piraeus confirms each transfer
 // you make in a second email; its balance alert already has the transaction.
 const IGNORED = [
-  (e) => /piraeusbank\.gr/i.test(e.from || '') && /ΕΓΧΡΗΜΑΤΗΣ ΣΥΝΑΛΛΑΓΗΣ/.test(normalizeText(e.subject)),
+  (e) => fromDomain_(e.from, 'piraeusbank.gr') && /ΕΓΧΡΗΜΑΤΗΣ ΣΥΝΑΛΛΑΓΗΣ/.test(normalizeText(e.subject)),
 ];
 
 // alert_type is the transaction source in the database: every bank's account
@@ -322,5 +346,5 @@ function parseEmail(email) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { parseAmount, parseDate, parseTime, normalizeText, flatten_, htmlToText_, emailText_, parseEmail, parseAccountAlert, parseCardAlert, parsePiraeusAlert, parseNbgAlert };
+  module.exports = { BANK_DOMAINS, isBankSender, parseAmount, parseDate, parseTime, normalizeText, flatten_, htmlToText_, emailText_, parseEmail, parseAccountAlert, parseCardAlert, parsePiraeusAlert, parseNbgAlert };
 }
