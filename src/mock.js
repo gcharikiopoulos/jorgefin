@@ -130,7 +130,9 @@ function vBalanceDaily() {
   let balance = 3200;
   const rows = [];
   for (let i = days.length - 1; i >= 0; i--) {
-    rows.push({ account_id: 1, day: days[i], net_change: money(net.get(days[i])), balance: money(balance) });
+    rows.push({ account_id: 1, kind: 'cash', day: days[i], net_change: money(net.get(days[i])), balance: money(balance) });
+    // An invented savings account that grows a little each day.
+    rows.push({ account_id: 2, kind: 'savings', day: days[i], net_change: '0.00', balance: money(12000 + i * 15) });
     balance -= net.get(days[i]);
   }
   return rows.reverse();
