@@ -61,11 +61,11 @@ function useSectionKeys() {
 
 function ReviewBadge({ count }) {
   if (!count) return null;
-  return <Mono sx={{ fontSize: 11.5, fontWeight: 700, color: 'cockpit.warn', border: 1, borderColor: 'cockpit.warn', borderRadius: '2px', px: '3px', lineHeight: '13px' }}>{count > 99 ? '99+' : count}</Mono>;
+  return <Mono sx={{ fontSize: 12, fontWeight: 600, color: 'cockpit.warn', bgcolor: 'cockpit.warnBg', borderRadius: '999px', px: '7px', lineHeight: '18px' }}>{count > 99 ? '99+' : count}</Mono>;
 }
 
 const tabSx = {
-  display: 'flex', alignItems: 'center', gap: 0.75, px: 1.75, color: 'cockpit.tx2', textDecoration: 'none', fontSize: 14, whiteSpace: 'nowrap',
+  display: 'flex', alignItems: 'center', gap: 0.75, px: 1.75, color: 'cockpit.tx2', textDecoration: 'none', fontSize: 15, whiteSpace: 'nowrap',
   '&:hover': { color: 'cockpit.tx' },
   '&.active': { color: 'cockpit.tx', fontWeight: 600, boxShadow: (t) => `inset 0 -2px 0 ${t.palette.primary.main}` },
 };
@@ -81,8 +81,8 @@ function TopBar() {
           <Box component="svg" width={16} height={16} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} sx={{ color: 'primary.main' }} aria-hidden>
             <path d="M2 12 L6 7 L9 9.5 L14 3" /><path d="M10.5 3 H14 V6.5" />
           </Box>
-          <Mono sx={{ fontWeight: 700, fontSize: 13.5, letterSpacing: '0.12em' }}>JORGEFIN</Mono>
-          {isMock && <Mono sx={{ fontSize: 10.5, color: 'cockpit.warn', border: 1, borderColor: 'cockpit.warn', borderRadius: '2px', px: 0.5, lineHeight: '14px' }}>DEMO</Mono>}
+          <Box component="span" sx={{ fontWeight: 700, fontSize: 17 }}>jorgefin</Box>
+          {isMock && <Mono sx={{ fontSize: 12, fontWeight: 600, color: 'cockpit.warn', bgcolor: 'cockpit.warnBg', borderRadius: '999px', px: 1, lineHeight: '20px' }}>Demo</Mono>}
         </Stack>
         {!small && (
           <Stack component="nav" aria-label="Sections" direction="row" sx={{ alignSelf: 'stretch', ml: 0.75 }}>
@@ -96,10 +96,7 @@ function TopBar() {
         )}
         <Box sx={{ flexGrow: 1 }} />
         <Box sx={{ display: 'none' }}><TitlePortal /></Box>
-        <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75, display: { xs: 'none', md: 'flex' } }}>
-          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: online ? 'cockpit.pos' : 'cockpit.warn' }} />
-          <Label>{online ? 'Online' : 'Offline'}</Label>
-        </Stack>
+        {!online && <Label sx={{ color: 'cockpit.warn', display: { xs: 'none', md: 'inline' } }}>Offline</Label>}
         <LoadingIndicator />
         <ToggleThemeButton />
         <UserMenu><Logout /></UserMenu>

@@ -3,14 +3,14 @@
 
 import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Box, Button, IconButton, Skeleton, Stack, Typography } from '@mui/material';
+import { Box, Button, IconButton, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import { Title } from 'react-admin';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useCategories, useMonths } from '../hooks.js';
 import { num } from '../backend.js';
-import { amount, formatDayMonth, formatMonth, signedAmount, txnName } from '../format.js';
-import { BalanceChart, EmptyOrDenied, avg, rollup, thisMonth, transactionsLink, useBalance, useBreakdown, useMonthTransactions } from './Dashboard.jsx';
+import { amount, formatDayMonth, formatMonth, formatShortMonth, signedAmount, txnName } from '../format.js';
+import { BalanceChart, EmptyOrDenied, balanceSeries, avg, rollup, thisMonth, transactionsLink, useBalance, useBreakdown, useMonthTransactions } from './Dashboard.jsx';
 
 const SHOWN_CATEGORIES = 9;
 const AVERAGE_MONTHS = 6;
@@ -57,29 +57,43 @@ function Figure({ label, value, note, valueColor, noteColor }) {
   );
 }
 
+// Spent this month, the net of the last complete month (income mostly lands at the
+// month end, so a running month's net says little), and the balance by kind.
 function Figures({ months, index }) {
   const m = months[index];
   const month = m.month;
+  const running = month === thisMonth();
   const balance = useBalance();
-  const spent = num(m.expenses), income = num(m.income), net = num(m.net);
+  const spent = num(m.expenses);
   const earlier = months.slice(index + 1, index + 1 + AVERAGE_MONTHS).map((r) => num(r.expenses));
   const average = earlier.length ? avg(earlier) : null;
   let spentNote = null, spentColor;
-  if (average) {
-    if (month === thisMonth()) spentNote = `So far · an average month is ${euro(average)}`;
-    else {
-      const d = (spent - average) / average;
-      spentNote = `${Math.abs(Math.round(d * 100))}% ${d <= 0 ? 'below' : 'above'} your average (${euro(average)})`;
-      spentColor = d <= 0 ? 'cockpit.pos' : 'cockpit.neg';
-    }
+  if (average && running) spentNote = `By day ${new Date().getDate()} · an average month is ${euro(average)}`;
+  else if (average) {
+    const d = (spent - average) / average;
+    spentNote = `${Math.abs(Math.round(d * 100))}% ${d <= 0 ? 'below' : 'above'} your average (${euro(average)})`;
+    spentColor = d <= 0 ? 'cockpit.pos' : 'cockpit.neg';
   }
+  const closed = running ? months[index + 1] : m;
+  const net = closed ? num(closed.net) : null;
   const b = (balance.data || []).find((r) => r.month === month);
+  const parts = b ? [['Cash', b.cash], ['Savings', b.savings], ['Investments', b.investment]] : [];
   return (
-    <Box component="section" aria-label="This month" sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' }, gap: 2 }}>
-      <Figure label="Spent" value={euro(spent)} note={spentNote} noteColor={spentColor} />
-      <Figure label="Income" value={euro(income)} />
-      <Figure label="Net" value={`${signedAmount(net)} €`} valueColor={net < 0 ? 'cockpit.neg' : undefined} note={net < 0 ? 'Spent more than came in' : 'Kept this month'} />
-      <Figure label="Total balance" value={b ? euro(b.balance) : '—'} note={b ? `Cash ${euro(b.cash)} · saved ${euro(b.saved)}` : null} />
+    <Box component="section" aria-label="This month" sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 2 }}>
+      <Figure label={running ? 'Spent so far this month' : 'Spent'} value={euro(spent)} note={spentNote} noteColor={spentColor} />
+      {closed && (
+        <Figure label={running ? `Net last month (${formatShortMonth(closed.month)})` : 'Net'} value={`${signedAmount(net)} €`} valueColor={net < 0 ? 'cockpit.neg' : 'cockpit.pos'}
+          note={`Income ${euro(closed.income)} − spent ${euro(closed.expenses)}`} />
+      )}
+      <Box sx={{ ...cardSx, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+        <Typography sx={{ fontSize: 14, color: 'cockpit.tx3' }}>Total balance</Typography>
+        <Typography sx={{ ...figureSx, fontSize: { xs: 24, sm: 28, md: 32 }, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.15, whiteSpace: 'nowrap' }}>{b ? euro(b.balance) : '—'}</Typography>
+        {parts.map(([label, v]) => (
+          <Stack key={label} direction="row" sx={{ justifyContent: 'space-between', fontSize: 14, color: 'cockpit.tx3' }}>
+            <span>{label}</span><Box component="span" sx={{ ...figureSx, color: 'cockpit.tx2' }}>{euro(v)}</Box>
+          </Stack>
+        ))}
+      </Box>
     </Box>
   );
 }
@@ -127,20 +141,19 @@ function WhereItWent({ month, spent }) {
 }
 
 function BalanceLegend({ month }) {
+  const { cockpit: c, mode } = useTheme().palette;
   const balance = useBalance();
   const b = (balance.data || []).find((r) => r.month === month);
   if (!b) return null;
-  const item = (color, label, v) => (
-    <Stack direction="row" sx={{ alignItems: 'center', gap: 1, fontSize: 14 }}>
-      <Box sx={{ width: 14, height: 3, borderRadius: 2, bgcolor: color }} />
-      <span>{label}</span>
-      <Box component="b" sx={{ ...figureSx, ml: 'auto', fontWeight: 600 }}>{euro(v)}</Box>
-    </Stack>
-  );
   return (
     <Stack sx={{ gap: 0.75, mt: 1 }}>
-      {item('cockpit.pos', 'Savings & investments', b.saved)}
-      {item('primary.main', 'Cash', b.cash)}
+      {balanceSeries(c, mode).map((s) => (
+        <Stack key={s.key} direction="row" sx={{ alignItems: 'center', gap: 1, fontSize: 14 }}>
+          <Box sx={{ width: 14, height: 3, borderRadius: 2, bgcolor: s.color }} />
+          <span>{s.label}</span>
+          <Box component="b" sx={{ ...figureSx, ml: 'auto', fontWeight: 600 }}>{euro(b[s.key])}</Box>
+        </Stack>
+      ))}
     </Stack>
   );
 }

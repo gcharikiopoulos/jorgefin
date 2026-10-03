@@ -7,17 +7,17 @@ import { List, useListContext } from 'react-admin';
 import { CategorizePanel } from '../components/CategorizePanel.jsx';
 import { SplitLayout } from '../components/SidePanel.jsx';
 import { hideBelowMd, hideBelowSm, isTyping, rowSx, tableSx, tdSx, thSx } from '../components/dense.js';
-import { Kbd, Label, Mono } from '../dashboard/parts.jsx';
+import { Label, Mono } from '../dashboard/parts.jsx';
 import { formatDayMonth, formatDate, sameText, signedAmount } from '../format.js';
 import { monoSx } from '../theme.js';
 import { num } from '../backend.js';
 
 function Empty() {
   return (
-    <Box sx={{ mt: 0.75, py: 6, textAlign: 'center', bgcolor: 'cockpit.panel', border: 1, borderColor: 'cockpit.line', borderRadius: '3px' }}>
+    <Box sx={{ mt: 0.75, py: 6, textAlign: 'center', bgcolor: 'cockpit.panel', borderRadius: '14px' }}>
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-        <Box sx={{ width: 7, height: 7, borderRadius: '1px', bgcolor: 'cockpit.pos' }} />
-        <Mono sx={{ fontSize: 12.5, fontWeight: 700, letterSpacing: '0.08em' }}>ALL CAUGHT UP</Mono>
+        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'cockpit.pos' }} />
+        <Mono sx={{ fontSize: 17, fontWeight: 600 }}>All caught up</Mono>
       </Stack>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Every transaction has a category.</Typography>
     </Box>
@@ -31,7 +31,7 @@ function SortHead({ field, children, sx }) {
   return (
     <Box component="th" aria-sort={on ? (sort.order === 'ASC' ? 'ascending' : 'descending') : 'none'} sx={{ ...thSx, ...sx, p: 0 }}>
       <Box component="button" type="button" onClick={() => setSort({ field, order: on && sort.order === 'DESC' ? 'ASC' : 'DESC' })}
-        sx={{ all: 'unset', boxSizing: 'border-box', width: '100%', height: '100%', px: 0.875, cursor: 'pointer', textAlign: 'inherit', color: on ? 'cockpit.tx' : 'inherit', '&:focus-visible': { outline: 1, outlineColor: 'primary.main' } }}>
+        sx={{ all: 'unset', boxSizing: 'border-box', width: '100%', height: '100%', px: 1.5, cursor: 'pointer', textAlign: 'inherit', color: on ? 'cockpit.tx' : 'inherit', '&:focus-visible': { outline: 1, outlineColor: 'primary.main' } }}>
         {children}{on ? (sort.order === 'ASC' ? ' ▴' : ' ▾') : ''}
       </Box>
     </Box>
@@ -89,25 +89,24 @@ function ReviewBody() {
 
   return (
     <SplitLayout panel={selected && <CategorizePanel item={selected} onClose={() => setSelectedId(null)} onSaved={next} />} onClose={() => setSelectedId(null)}>
-      <Box sx={{ bgcolor: 'cockpit.panel', border: 1, borderColor: 'cockpit.line', borderRadius: '3px' }}>
-        <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5, flexWrap: 'wrap', minHeight: 42, px: 1.5, py: 0.75, borderBottom: 1, borderColor: 'cockpit.line' }}>
+      <Box sx={{ bgcolor: 'cockpit.panel', borderRadius: '14px', overflow: 'hidden' }}>
+        <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5, flexWrap: 'wrap', minHeight: 56, px: 2, py: 1.25 }}>
           <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75 }}>
-            <Box sx={{ width: 7, height: 7, borderRadius: '1px', bgcolor: data.length ? 'cockpit.warn' : 'cockpit.pos', opacity: 0.85 }} />
-            <Label component="h1" sx={{ color: 'cockpit.tx', m: 0 }}>Review queue</Label>
+            <Label component="h1" sx={{ color: 'cockpit.tx', m: 0, fontSize: 17, fontWeight: 600 }}>To review</Label>
           </Stack>
-          <Mono sx={{ display: 'flex', gap: 1.5, fontSize: 12, color: 'cockpit.tx3', '& b': { fontWeight: 600, color: 'cockpit.tx' } }}>
-            <span>DESCRIPTIONS <b>{data.length}</b></span>
-            <span>TXNS <b>{txns}</b></span>
-            <span>OUT <b>{signedAmount(out)}</b></span>
-            {inn > 0 && <span>IN <Box component="b" sx={{ color: 'cockpit.pos !important' }}>{signedAmount(inn)}</Box></span>}
+          <Mono sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, fontSize: 14, color: 'cockpit.tx3', '& b': { fontWeight: 600, color: 'cockpit.tx' } }}>
+            <span><b>{data.length}</b> {data.length === 1 ? 'description' : 'descriptions'}</span>
+            <span><b>{txns}</b> transactions</span>
+            <span>Out <b>{signedAmount(out)}</b></span>
+            {inn > 0 && <span>In <Box component="b" sx={{ color: 'cockpit.pos !important' }}>{signedAmount(inn)}</Box></span>}
           </Mono>
           <Box sx={{ flexGrow: 1 }} />
-          <Label sx={{ textTransform: 'none', letterSpacing: '0.02em', display: { xs: 'none', md: 'inline' } }}>One rule categorises every transaction with the description, now and later.</Label>
+          <Label sx={{ display: { xs: 'none', md: 'inline' } }}>One rule categorises every transaction with the description, now and later.</Label>
         </Stack>
         <Box component="table" sx={tableSx}>
           <thead><tr>
             <SortHead field="sample_description">Description</SortHead>
-            <SortHead field="txn_count" sx={{ width: 64, textAlign: 'right' }}>Txns</SortHead>
+            <SortHead field="txn_count" sx={{ width: 64, textAlign: 'right' }}>Count</SortHead>
             <Box component="th" sx={{ ...thSx, ...hideBelowSm, width: 96 }}>Out · in</Box>
             <SortHead field="last_seen" sx={{ ...hideBelowMd, width: 150 }}>Seen</SortHead>
             <SortHead field="net_amount" sx={{ width: 100, textAlign: 'right' }}>Net €</SortHead>
@@ -122,28 +121,20 @@ function ReviewBody() {
                   onClick={() => (selectedId === r.id ? setSelectedId(null) : openAt(i))} aria-selected={selectedId === r.id}
                   sx={rowSx({ active: selectedId === r.id, cursor: i === cursor })}>
                   <Box component="td" sx={tdSx} title={[r.sample_description, norm].filter(Boolean).join(' · ')}>
-                    <Box component="span" sx={{ ...monoSx, fontSize: 12.5, fontWeight: 600 }}>{r.sample_description || r.description_norm}</Box>
-                    {norm && <Mono sx={{ fontSize: 11.5, color: 'cockpit.tx3', ml: 1, display: { xs: 'none', sm: 'inline' } }}>{norm}</Mono>}
+                    <Box component="span" sx={{ fontWeight: 600 }}>{r.sample_description || r.description_norm}</Box>
+                    {norm && <Mono sx={{ fontSize: 13, color: 'cockpit.tx3', ml: 1, display: { xs: 'none', sm: 'inline' } }}>{norm}</Mono>}
                   </Box>
-                  <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12.5, textAlign: 'right', fontWeight: 600 }}>{num(r.txn_count)}</Box>
-                  <Box component="td" sx={{ ...tdSx, ...hideBelowSm, ...monoSx, fontSize: 12, color: 'cockpit.tx3' }}>{outN} · {inN}</Box>
-                  <Box component="td" sx={{ ...tdSx, ...hideBelowMd, ...monoSx, fontSize: 12, color: 'cockpit.tx2' }} title={`${formatDate(r.first_seen)} – ${formatDate(r.last_seen)}`}>
+                  <Box component="td" sx={{ ...tdSx, ...monoSx, textAlign: 'right', fontWeight: 600 }}>{num(r.txn_count)}</Box>
+                  <Box component="td" sx={{ ...tdSx, ...hideBelowSm, ...monoSx, fontSize: 13.5, color: 'cockpit.tx3' }}>{outN} · {inN}</Box>
+                  <Box component="td" sx={{ ...tdSx, ...hideBelowMd, ...monoSx, fontSize: 13.5, color: 'cockpit.tx2' }} title={`${formatDate(r.first_seen)} – ${formatDate(r.last_seen)}`}>
                     {r.first_seen === r.last_seen ? formatDayMonth(r.first_seen) : `${formatDayMonth(r.first_seen)} – ${formatDayMonth(r.last_seen)}`}
                   </Box>
-                  <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 13, fontWeight: 600, textAlign: 'right', color: num(r.net_amount) > 0 ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(r.net_amount)}</Box>
+                  <Box component="td" sx={{ ...tdSx, ...monoSx, fontWeight: 600, textAlign: 'right', color: num(r.net_amount) > 0 ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(r.net_amount)}</Box>
                 </Box>
               );
             })}
           </tbody>
         </Box>
-        <Mono component="div" sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1.5, px: 1.25, py: 0.75, fontSize: 11, color: 'cockpit.tx3' }}>
-          <span>Click a row to make a rule; the next one opens after saving</span>
-          <Box sx={{ flexGrow: 1 }} />
-          <span><Kbd>J</Kbd> <Kbd>K</Kbd> move</span>
-          <span><Kbd>⏎</Kbd> open</span>
-          <span><Kbd>C</Kbd> category</span>
-          <span><Kbd>Esc</Kbd> close</span>
-        </Mono>
       </Box>
     </SplitLayout>
   );

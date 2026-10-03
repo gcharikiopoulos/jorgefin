@@ -63,7 +63,7 @@ export function rollup(rows = [], categories) {
 
 function MonthPicker({ months, index, onChange }) {
   return (
-    <Stack direction="row" sx={{ alignItems: 'center', border: 1, borderColor: 'cockpit.line2', borderRadius: '3px', height: CONTROL, bgcolor: 'cockpit.panel' }}>
+    <Stack direction="row" sx={{ alignItems: 'center', border: 1, borderColor: 'cockpit.line2', borderRadius: '8px', height: CONTROL, bgcolor: 'cockpit.panel' }}>
       <IconButton aria-label="Previous month" onClick={() => onChange(index + 1)} disabled={index >= months.length - 1} sx={{ borderRadius: 0, p: { xs: '10px', md: '5px' } }}><ChevronLeftIcon sx={{ fontSize: 20 }} /></IconButton>
       <TextField
         select
@@ -71,7 +71,7 @@ function MonthPicker({ months, index, onChange }) {
         value={months[index]?.month ?? ''}
         onChange={(e) => onChange(months.findIndex((m) => m.month === e.target.value))}
         slotProps={{ input: { disableUnderline: true }, htmlInput: { 'aria-label': 'Month' } }}
-        sx={{ m: 0, minWidth: 150, alignSelf: 'stretch', height: '100%', '& .MuiInputBase-root': { height: '100%' }, '& .MuiSelect-select': { height: '100% !important', display: 'flex', alignItems: 'center', boxSizing: 'border-box' }, '& .MuiSelect-select.MuiSelect-select': { ...monoSx, fontSize: 12.5, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', py: 0, pl: 0.5 } }}
+        sx={{ m: 0, minWidth: 150, alignSelf: 'stretch', height: '100%', '& .MuiInputBase-root': { height: '100%' }, '& .MuiSelect-select': { height: '100% !important', display: 'flex', alignItems: 'center', boxSizing: 'border-box' }, '& .MuiSelect-select.MuiSelect-select': { fontSize: 14, fontWeight: 600, textTransform: 'capitalize', py: 0, pl: 0.5 } }}
       >
         {months.map((m) => <MenuItem key={m.month} value={m.month} sx={{ textTransform: 'capitalize' }}>{formatMonth(m.month)}</MenuItem>)}
       </TextField>
@@ -123,16 +123,16 @@ function KpiRow({ months, index, txQuery }) {
         onClick={uncat ? () => navigate('/review') : undefined}
         footer={(
           <>
-            <Mono sx={{ fontSize: 11.5, color: 'cockpit.tx2', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
+            <Mono sx={{ fontSize: 12.5, color: 'cockpit.tx2', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
               {uncat ? `${uncat - uncatIn} out · ${uncatIn} in · ${new Set(uncatRows.map((r) => r.description)).size} descriptions` : 'Every transaction has a category'}
             </Mono>
             <Box sx={{ display: 'flex', height: 4, width: '100%', bgcolor: 'cockpit.line', borderRadius: '1px', overflow: 'hidden' }}>
               <Box sx={{ width: `${done * 100}%`, bgcolor: 'cockpit.pos' }} />
               <Box sx={{ width: `${(1 - done) * 100}%`, bgcolor: 'cockpit.warn' }} />
             </Box>
-            <Mono sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: 11, color: 'cockpit.tx3', borderTop: 1, borderStyle: 'dashed', borderColor: 'cockpit.line', pt: 0.5 }}>
-              <span>DONE {total - uncat}/{total} · {percent(done, 1)}</span>
-              {uncat > 0 && <span>OPEN ▸</span>}
+            <Mono sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: 12.5, color: 'cockpit.tx3', borderTop: 1, borderColor: 'cockpit.line', pt: 0.5 }}>
+              <span>Done {total - uncat} of {total} · {percent(done, 0)}</span>
+              {uncat > 0 && <span>Open ›</span>}
             </Mono>
           </>
         )}
@@ -145,19 +145,23 @@ function KpiRow({ months, index, txQuery }) {
 
 const svgBox = { position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' };
 
-// Two lines: day-to-day cash, and savings + investments (investments at cost).
+// Three lines: day-to-day cash, savings, and investments (at what went in).
+// Colour and label of each balance line, shared with the Overview's legend.
+export const balanceSeries = (c, mode) => [
+  { key: 'savings', label: 'Savings', color: c.pos },
+  { key: 'investment', label: 'Investments', color: seriesColor(6, mode) },
+  { key: 'cash', label: 'Cash', color: c.acc },
+];
+
 export function BalanceChart({ month, legend = true }) {
-  const c = useTheme().palette.cockpit;
+  const { cockpit: c, mode } = useTheme().palette;
   const query = useBalance();
   return (
     <QueryState query={query} height={180} empty="No balance on record yet.">
       {(rows) => {
         const upTo = rows.filter((r) => r.month <= month);
         const w = (upTo.length ? upTo : rows).slice(-12);
-        const series = [
-          { key: 'saved', label: 'SAVINGS & INV.', color: c.pos },
-          { key: 'cash', label: 'CASH', color: c.acc },
-        ].filter((s) => w.some((r) => r[s.key]));
+        const series = balanceSeries(c, mode).filter((s) => w.some((r) => r[s.key]));
         const vals = series.flatMap((s) => w.map((r) => r[s.key]));
         const max = Math.max(...vals, 0), min = Math.min(...vals, 0);
         const step0 = niceTicks(max - min || 1, 4).ticks[1] || 1;
@@ -174,20 +178,20 @@ export function BalanceChart({ month, legend = true }) {
               <path d={ticks.map((t) => `M0 ${Y(lo + t).toFixed(1)} H1000`).join(' ')} stroke={c.line} fill="none" vectorEffect="non-scaling-stroke" />
               {series.map((s) => <path key={s.key} d={line(s.key)} stroke={s.color} strokeWidth={1.75} fill="none" vectorEffect="non-scaling-stroke" />)}
             </svg>
-            {ticks.map((t) => <Mono key={t} sx={{ position: 'absolute', right: -50, top: `${(Y(lo + t) / 180) * 100}%`, transform: 'translateY(-50%)', fontSize: 11, color: 'cockpit.tx3' }}>{axisAmount(lo + t)}</Mono>)}
+            {ticks.map((t) => <Mono key={t} sx={{ position: 'absolute', right: -50, top: `${(Y(lo + t) / 180) * 100}%`, transform: 'translateY(-50%)', fontSize: 12.5, color: 'cockpit.tx3' }}>{axisAmount(lo + t)}</Mono>)}
             {w.map((r, i) => (
               <Box key={r.month}>
                 {series.map((s) => (
-                  <Box key={s.key} title={`${formatMonth(r.month)} · cash ${amount(r.cash)} € · savings & investments ${amount(r.saved)} € · total ${amount(r.balance)} €`}
+                  <Box key={s.key} title={`${formatMonth(r.month)} · cash ${amount(r.cash)} € · savings ${amount(r.savings)} € · investments ${amount(r.investment)} € · total ${amount(r.balance)} €`}
                     sx={{ position: 'absolute', left: `${X(i) / 10}%`, top: `${(Y(r[s.key]) / 180) * 100}%`, width: 5, height: 5, m: '-3px 0 0 -3px', borderRadius: '50%', bgcolor: 'cockpit.panel', border: 1, borderColor: s.color }} />
                 ))}
-                <Mono sx={{ position: 'absolute', left: `${X(i) / 10}%`, bottom: -18, transform: 'translateX(-50%)', fontSize: 10.5, color: i === w.length - 1 ? 'cockpit.tx' : 'cockpit.tx3', whiteSpace: 'nowrap' }}>{formatShortMonth(r.month)}</Mono>
+                <Mono sx={{ position: 'absolute', left: `${X(i) / 10}%`, bottom: -18, transform: 'translateX(-50%)', fontSize: 12.5, color: i === w.length - 1 ? 'cockpit.tx' : 'cockpit.tx3', whiteSpace: 'nowrap' }}>{formatShortMonth(r.month)}</Mono>
               </Box>
             ))}
             {legend && (
-            <Mono component="div" sx={{ position: 'absolute', left: 4, top: 0, display: 'flex', flexDirection: 'column', gap: '1px', fontSize: 11, bgcolor: 'cockpit.panel', px: 0.5, py: '2px', border: 1, borderColor: 'cockpit.line', '& i': { display: 'inline-block', width: 10, height: 2, verticalAlign: 'middle', mr: 0.5 } }}>
+            <Mono component="div" sx={{ position: 'absolute', left: 4, top: 0, display: 'flex', flexDirection: 'column', gap: '1px', fontSize: 12.5, bgcolor: 'cockpit.panel', px: 0.75, py: 0.5, borderRadius: '6px', '& i': { display: 'inline-block', width: 10, height: 2, verticalAlign: 'middle', mr: 0.5 } }}>
               {series.map((s) => <span key={s.key}><i style={{ background: s.color }} />{s.label} <b>{amount(last[s.key])}</b></span>)}
-              <Box component="span" sx={{ color: 'cockpit.tx2' }}>TOTAL {amount(last.balance)}</Box>
+              <Box component="span" sx={{ color: 'cockpit.tx2' }}>Total {amount(last.balance)}</Box>
             </Mono>
             )}
           </Box>
@@ -235,12 +239,12 @@ function SpendPace({ months, index }) {
               {projected && <path d={`M${X(a.length - 1)} ${Y(now)} L${X(days - 1)} ${Y(projected)}`} stroke={c.acc} strokeDasharray="2 3" fill="none" vectorEffect="non-scaling-stroke" />}
               <path d={path(a)} stroke={c.acc} strokeWidth={2} fill="none" vectorEffect="non-scaling-stroke" />
             </svg>
-            {ticks.map((t) => <Mono key={t} sx={{ position: 'absolute', right: -50, top: `${(Y(t) / 180) * 100}%`, transform: 'translateY(-50%)', fontSize: 11, color: 'cockpit.tx3' }}>{axisAmount(t)}</Mono>)}
-            {[1, 8, 15, 22, days].map((d) => <Mono key={d} sx={{ position: 'absolute', left: `${X(d - 1) / 10}%`, bottom: -18, transform: 'translateX(-50%)', fontSize: 10.5, color: 'cockpit.tx3' }}>{String(d).padStart(2, '0')}</Mono>)}
-            <Mono component="div" sx={{ position: 'absolute', left: 4, top: 0, display: 'flex', flexDirection: 'column', gap: '1px', fontSize: 11, bgcolor: 'cockpit.panel', px: 0.5, py: '2px', border: 1, borderColor: 'cockpit.line', '& i': { display: 'inline-block', width: 10, verticalAlign: 'middle', mr: 0.5 } }}>
-              <span><i style={{ height: 2, background: c.acc }} />{formatShortMonth(month).toUpperCase()} <b>{amount(now)}</b>{projected ? ` → ${amount(projected)}` : ''}</span>
-              {b.length > 0 && <Box component="span" sx={{ color: 'cockpit.tx2' }}><i style={{ borderTop: `1px dashed ${c.out}` }} />{formatShortMonth(prevMonth).toUpperCase()} {amount(b[b.length - 1])}{comparable != null && isCurrent ? ` (${amount(comparable)} by day ${a.length})` : ''}</Box>}
-              {baseline > 0 && <Box component="span" sx={{ color: 'cockpit.tx3' }}><i style={{ borderTop: `1px dotted ${c.tx3}` }} />12M AVG {amount(baseline)}</Box>}
+            {ticks.map((t) => <Mono key={t} sx={{ position: 'absolute', right: -50, top: `${(Y(t) / 180) * 100}%`, transform: 'translateY(-50%)', fontSize: 12.5, color: 'cockpit.tx3' }}>{axisAmount(t)}</Mono>)}
+            {[1, 8, 15, 22, days].map((d) => <Mono key={d} sx={{ position: 'absolute', left: `${X(d - 1) / 10}%`, bottom: -18, transform: 'translateX(-50%)', fontSize: 12.5, color: 'cockpit.tx3' }}>{String(d).padStart(2, '0')}</Mono>)}
+            <Mono component="div" sx={{ position: 'absolute', left: 4, top: 0, display: 'flex', flexDirection: 'column', gap: '1px', fontSize: 12.5, bgcolor: 'cockpit.panel', px: 0.75, py: 0.5, borderRadius: '6px', '& i': { display: 'inline-block', width: 10, verticalAlign: 'middle', mr: 0.5 } }}>
+              <span><i style={{ height: 2, background: c.acc }} />{formatShortMonth(month)} <b>{amount(now)}</b>{projected ? ` → ${amount(projected)}` : ''}</span>
+              {b.length > 0 && <Box component="span" sx={{ color: 'cockpit.tx2' }}><i style={{ borderTop: `1px dashed ${c.out}` }} />{formatShortMonth(prevMonth)} {amount(b[b.length - 1])}{comparable != null && isCurrent ? ` (${amount(comparable)} by day ${a.length})` : ''}</Box>}
+              {baseline > 0 && <Box component="span" sx={{ color: 'cockpit.tx3' }}><i style={{ borderTop: `1px dotted ${c.tx3}` }} />12-month avg {amount(baseline)}</Box>}
             </Mono>
           </Box>
         );
@@ -274,10 +278,10 @@ function MonthLedger({ months, index, txQuery }) {
   ];
   return (
     <>
-      <Mono component="dl" sx={{ m: 0, px: 1.5, pt: 0.5, pb: 1, display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', columnGap: 1, fontSize: 12.5, '& > *': { lineHeight: '26px', borderBottom: 1, borderColor: 'cockpit.line', m: 0 } }}>
+      <Mono component="dl" sx={{ m: 0, px: 1.5, pt: 0.5, pb: 1, display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', columnGap: 1.5, fontSize: 14, '& > *': { lineHeight: '34px', borderBottom: 1, borderColor: 'cockpit.line', m: 0 } }}>
         {items.map(([k, note, v, color, weight]) => [
-          <Box component="dt" key={`${k}-k`} sx={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: weight ? 'cockpit.tx' : 'cockpit.tx3' }}>{k}</Box>,
-          <Box component="dd" key={`${k}-n`} sx={{ fontSize: 11, color: 'cockpit.tx3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{note}</Box>,
+          <Box component="dt" key={`${k}-k`} sx={{ fontSize: 13, fontWeight: weight ? 600 : 500, color: weight ? 'cockpit.tx' : 'cockpit.tx3' }}>{k}</Box>,
+          <Box component="dd" key={`${k}-n`} sx={{ fontSize: 13, color: 'cockpit.tx3', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{note}</Box>,
           <Box component="dd" key={`${k}-v`} sx={{ textAlign: 'right', color, fontWeight: weight }}>{v}</Box>,
         ])}
       </Mono>
@@ -286,7 +290,7 @@ function MonthLedger({ months, index, txQuery }) {
           <Box sx={{ display: 'flex', height: 5, gap: '1px' }}>
             {sources.map((x, i) => <Box key={x.s} sx={{ flex: `${x.n} 1 0`, bgcolor: shades[i] }} />)}
           </Box>
-          <Mono sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: 'cockpit.tx3' }}>
+          <Mono sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'cockpit.tx3' }}>
             {sources.map((x, i) => <span key={x.s}><Box component="span" sx={{ color: shades[i] }}>■</Box> {sourceShort(x.s)} {x.n}</span>)}
           </Mono>
         </Box>
@@ -306,12 +310,12 @@ function CashFlow({ months, index, onPick }) {
   const rate = num(shown.income) ? shownNet / num(shown.income) : null;
   return (
     <>
-      <Mono component="div" sx={{ display: 'flex', gap: 1.5, alignItems: 'center', minHeight: 32, flexWrap: 'wrap', px: 1.5, bgcolor: 'cockpit.panel2', borderBottom: 1, borderColor: 'cockpit.line', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', '& b': { color: 'cockpit.tx' }, color: 'cockpit.tx3' }}>
-        <Box component="span" sx={{ fontWeight: 700, color: 'cockpit.accText', textTransform: 'uppercase' }}>▸ {formatShortMonth(shown.month)}</Box>
-        <span>IN <b>{amount(shown.income)}</b></span>
-        <span>OUT <b>{amount(shown.expenses)}</b></span>
-        <span>NET <Box component="b" sx={{ color: shownNet >= 0 ? 'cockpit.pos !important' : 'cockpit.neg !important' }}>{signedAmount(shownNet)}</Box></span>
-        {rate != null && <span>SAV <b>{percent(rate, 1)}</b></span>}
+      <Mono component="div" sx={{ display: 'flex', gap: 1.5, alignItems: 'center', minHeight: 36, flexWrap: 'wrap', px: 2, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', '& b': { color: 'cockpit.tx' }, color: 'cockpit.tx3' }}>
+        <Box component="span" sx={{ fontWeight: 600, color: 'cockpit.accText' }}>{formatShortMonth(shown.month)}</Box>
+        <span>In <b>{amount(shown.income)}</b></span>
+        <span>Out <b>{amount(shown.expenses)}</b></span>
+        <span>Net <Box component="b" sx={{ color: shownNet >= 0 ? 'cockpit.pos !important' : 'cockpit.neg !important' }}>{signedAmount(shownNet)}</Box></span>
+        {rate != null && <span>Saved <b>{percent(rate, 1)}</b></span>}
       </Mono>
       <Box sx={{ position: 'relative', height: 160, m: '10px 44px 0 12px' }}>
         <GridLines ticks={ticks} max={top} format={axisAmount} />
@@ -341,7 +345,7 @@ function CashFlow({ months, index, onPick }) {
       </Box>
       <Box sx={{ display: 'flex', gap: '4px', m: '4px 44px 10px 12px' }}>
         {window.map((r) => (
-          <Mono key={r.month} sx={{ flex: '1 1 0', textAlign: 'center', fontSize: 10.5, color: months.indexOf(r) === index ? 'cockpit.accText' : 'cockpit.tx3', fontWeight: months.indexOf(r) === index ? 700 : 400, whiteSpace: 'nowrap', overflow: 'hidden' }}>{formatShortMonth(r.month)}</Mono>
+          <Mono key={r.month} sx={{ flex: '1 1 0', textAlign: 'center', fontSize: 12.5, color: months.indexOf(r) === index ? 'cockpit.accText' : 'cockpit.tx3', fontWeight: months.indexOf(r) === index ? 700 : 400, whiteSpace: 'nowrap', overflow: 'hidden' }}>{formatShortMonth(r.month)}</Mono>
         ))}
       </Box>
     </>
@@ -351,7 +355,7 @@ function CashFlow({ months, index, onPick }) {
 // Running income and expenses through one calendar year: two lines from 0 on
 // 1 January, the gap between them shaded as savings (or overspend where expenses
 // lead). Points sit at each month end; the x-axis always spans the whole year.
-const MONTH_INITIALS = Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat('el-GR', { month: 'short' }).format(new Date(2021, i, 1)).replace('.', '').toUpperCase());
+const MONTH_INITIALS = Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat('el-GR', { month: 'short' }).format(new Date(2021, i, 1)).replace('.', ''));
 
 function yearSeries(months, year) {
   const byMonth = new Map(months.filter((r) => r.month.startsWith(`${year}-`)).map((r) => [Number(r.month.slice(5, 7)) - 1, r]));
@@ -406,20 +410,20 @@ function YearToDate({ months, index }) {
   if (last < 0) return <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>No data for {shownYear}.</Typography>;
   return (
     <>
-      <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5, flexWrap: 'wrap', minHeight: 34, px: 1.5, py: 0.5, bgcolor: 'cockpit.panel2', borderBottom: 1, borderColor: 'cockpit.line' }}>
-        <Mono sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', fontSize: 12, color: 'cockpit.tx3', '& b': { color: 'cockpit.tx', fontWeight: 600 } }}>
-          <Box component="span" sx={{ fontWeight: 700, color: 'cockpit.accText' }}>▸ {at === 0 ? `1 ${MONTH_INITIALS[0]}` : `${MONTH_INITIALS[at - 1]} ${shownYear}`}</Box>
-          <span>IN <b>{amount(inc)}</b></span>
-          <span>OUT <b>{amount(exp)}</b></span>
-          <span>SAVED <Box component="b" sx={{ color: saved >= 0 ? 'cockpit.pos !important' : 'cockpit.neg !important' }}>{signedAmount(saved)}</Box></span>
-          {inc > 0 && <span>RATE <b>{percent(saved / inc, 1)}</b></span>}
+      <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5, flexWrap: 'wrap', minHeight: 36, px: 2, py: 0.5 }}>
+        <Mono sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', fontSize: 14, color: 'cockpit.tx3', '& b': { color: 'cockpit.tx', fontWeight: 600 } }}>
+          <Box component="span" sx={{ fontWeight: 600, color: 'cockpit.accText' }}>{at === 0 ? `1 ${MONTH_INITIALS[0]}` : `${MONTH_INITIALS[at - 1]} ${shownYear}`}</Box>
+          <span>In <b>{amount(inc)}</b></span>
+          <span>Out <b>{amount(exp)}</b></span>
+          <span>Saved <Box component="b" sx={{ color: saved >= 0 ? 'cockpit.pos !important' : 'cockpit.neg !important' }}>{signedAmount(saved)}</Box></span>
+          {inc > 0 && <span>Rate <b>{percent(saved / inc, 1)}</b></span>}
         </Mono>
         <Box sx={{ flexGrow: 1 }} />
         {years.length > 1 && (
           <Stack direction="row" role="group" aria-label="Year" sx={{ gap: 0.5 }}>
             {years.slice(0, 4).map((y) => (
               <Box key={y} component="button" type="button" aria-pressed={y === shownYear} onClick={() => { setYear(y); setHover(null); }}
-                sx={{ ...monoSx, minHeight: { xs: 40, md: 26 }, px: 1.25, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', borderRadius: '3px', border: 1, borderColor: y === shownYear ? 'primary.main' : 'cockpit.line2', bgcolor: y === shownYear ? 'primary.main' : 'transparent', color: y === shownYear ? '#fff' : 'cockpit.tx2' }}>
+                sx={{ ...monoSx, minHeight: { xs: 40, md: 26 }, px: 1.25, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderRadius: '3px', border: 1, borderColor: y === shownYear ? 'primary.main' : 'cockpit.line2', bgcolor: y === shownYear ? 'primary.main' : 'transparent', color: y === shownYear ? '#fff' : 'cockpit.tx2' }}>
                 {y}
               </Box>
             ))}
@@ -434,9 +438,9 @@ function YearToDate({ months, index }) {
           <path d={path(expenses)} stroke={expColor} strokeWidth={2} fill="none" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
           <path d={path(income)} stroke={incColor} strokeWidth={2} fill="none" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
         </svg>
-        {ticks.map((t) => <Mono key={t} sx={{ position: 'absolute', right: -54, top: pct(Y(t)), transform: 'translateY(-50%)', fontSize: 11, color: 'cockpit.tx3' }}>{axisAmount(t)}</Mono>)}
+        {ticks.map((t) => <Mono key={t} sx={{ position: 'absolute', right: -54, top: pct(Y(t)), transform: 'translateY(-50%)', fontSize: 12.5, color: 'cockpit.tx3' }}>{axisAmount(t)}</Mono>)}
         {MONTH_INITIALS.map((m, i) => (
-          <Mono key={m} sx={{ position: 'absolute', left: `${(X(i + 1) / 10)}%`, bottom: -22, transform: 'translateX(-50%)', fontSize: 10.5, color: i >= first && i <= last ? (i + 1 === at ? 'cockpit.tx' : 'cockpit.tx3') : 'cockpit.line2', fontWeight: i + 1 === at ? 700 : 400, display: { xs: i % 3 === 2 ? 'block' : 'none', sm: 'block' } }}>{m}</Mono>
+          <Mono key={m} sx={{ position: 'absolute', left: `${(X(i + 1) / 10)}%`, bottom: -22, transform: 'translateX(-50%)', fontSize: 12.5, color: i >= first && i <= last ? (i + 1 === at ? 'cockpit.tx' : 'cockpit.tx3') : 'cockpit.line2', fontWeight: i + 1 === at ? 700 : 400, display: { xs: i % 3 === 2 ? 'block' : 'none', sm: 'block' } }}>{m}</Mono>
         ))}
         {/* Markers on the readout point, with a 2px surface ring. */}
         {[[income, incColor], [expenses, expColor]].map(([arr, col]) => (
@@ -447,7 +451,7 @@ function YearToDate({ months, index }) {
           const other = arr === income ? expenses : income;
           const above = arr[last + 1] >= other[last + 1];
           return (
-            <Mono key={label} sx={{ position: 'absolute', left: `${X(last + 1) / 10}%`, top: pct(Y(arr[last + 1])), transform: `translate(${last + 1 >= 10 ? 'calc(-100% - 10px)' : '8px'}, ${above ? '-120%' : '20%'})`, fontSize: 11, fontWeight: 600, color: 'cockpit.tx', whiteSpace: 'nowrap', pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Mono key={label} sx={{ position: 'absolute', left: `${X(last + 1) / 10}%`, top: pct(Y(arr[last + 1])), transform: `translate(${last + 1 >= 10 ? 'calc(-100% - 10px)' : '8px'}, ${above ? '-120%' : '20%'})`, fontSize: 12.5, fontWeight: 600, color: 'cockpit.tx', whiteSpace: 'nowrap', pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <Box component="span" sx={{ width: 10, height: 2, bgcolor: col }} />{label} {amount(arr[last + 1])}
             </Mono>
           );
@@ -487,7 +491,7 @@ function CategoryTable({ months, index }) {
         });
         if (rest.length) lines.push({ category_id: 'other', label: `Other (${rest.length})`, total: rest.reduce((s, g) => s + g.total, 0), hist: [], color: REST_COLOR });
         const max = Math.max(...lines.map((l) => l.total));
-        const head = { ...monoSx, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'cockpit.tx3', textAlign: 'left', px: 1.25, height: 32, borderBottom: 1, borderColor: 'cockpit.line', whiteSpace: 'nowrap' };
+        const head = { ...monoSx, fontSize: 13, fontWeight: 500, color: 'cockpit.tx3', textAlign: 'left', px: 1.5, height: 36, borderBottom: 1, borderColor: 'cockpit.line', whiteSpace: 'nowrap' };
         const cell = { px: 1.25, height: ROW, borderBottom: 1, borderColor: 'cockpit.line', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 0 };
         return (
           <>
@@ -570,15 +574,15 @@ function DailySpend({ month }) {
                   const weekend = wd === 0 || wd === 6;
                   const capped = v > top;
                   return (
-                    <Box key={i} title={`${String(i + 1).padStart(2, '0')}.${month.slice(5, 7)} · ${amount(v)} €`} sx={{ flex: '1 1 0', height: '100%', display: 'flex', alignItems: 'flex-end', position: 'relative', bgcolor: weekend ? 'cockpit.hatch' : 'transparent' }}>
+                    <Box key={i} title={`${i + 1}.${month.slice(5, 7)} · ${amount(v)} €`} sx={{ flex: '1 1 0', height: '100%', display: 'flex', alignItems: 'flex-end', position: 'relative', bgcolor: weekend ? 'cockpit.hatch' : 'transparent' }}>
                       <Box sx={{ width: '100%', borderRadius: '1px 1px 0 0', height: capped ? '100%' : `${(v / top) * 100}%`, bgcolor: v ? 'primary.main' : 'transparent', borderBottom: v ? 0 : `2px solid ${c.line2}`, backgroundImage: capped ? 'repeating-linear-gradient(135deg, transparent 0 4px, rgba(0,0,0,.3) 4px 6px)' : 'none' }} />
-                      {capped && <Mono sx={{ position: 'absolute', top: 2, left: '50%', fontSize: 10.5, fontWeight: 700, color: '#fff', writingMode: 'vertical-rl', transform: 'translateX(-50%) rotate(180deg)' }}>{amount(v)}</Mono>}
+                      {capped && <Mono sx={{ position: 'absolute', top: 2, left: '50%', fontSize: 12.5, fontWeight: 700, color: '#fff', writingMode: 'vertical-rl', transform: 'translateX(-50%) rotate(180deg)' }}>{amount(v)}</Mono>}
                     </Box>
                   );
                 })}
               </Box>
               <Box sx={{ position: 'absolute', left: 0, right: 0, bottom: `${Math.min(average / top, 1) * 100}%`, borderTop: 1, borderStyle: 'dashed', borderColor: 'cockpit.tx2' }}>
-                <Mono sx={{ position: 'absolute', right: -40, top: -8, fontSize: 10.5, color: 'cockpit.tx2' }}>AVG</Mono>
+                <Mono sx={{ position: 'absolute', right: -40, top: -8, fontSize: 12.5, color: 'cockpit.tx2' }}>AVG</Mono>
               </Box>
             </Box>
             <Box sx={{ display: 'flex', gap: '3px', m: '4px 44px 10px 12px' }}>
@@ -586,7 +590,7 @@ function DailySpend({ month }) {
                 const wd = (firstWeekday + i) % 7;
                 const weekend = wd === 0 || wd === 6;
                 const sparse = i % 7 !== 0 && i !== values.length - 1;
-                return <Mono key={i} sx={{ flex: '1 1 0', textAlign: 'center', fontSize: 10.5, color: weekend ? 'cockpit.tx2' : 'cockpit.tx3', fontWeight: weekend ? 600 : 400, minWidth: 0, overflow: 'visible', whiteSpace: 'nowrap', visibility: { xs: sparse ? 'hidden' : 'visible', md: 'visible' } }}>{String(i + 1).padStart(2, '0')}</Mono>;
+                return <Mono key={i} sx={{ flex: '1 1 0', textAlign: 'center', fontSize: 12.5, color: weekend ? 'cockpit.tx2' : 'cockpit.tx3', fontWeight: weekend ? 600 : 400, minWidth: 0, overflow: 'visible', whiteSpace: 'nowrap', visibility: { xs: sparse ? 'hidden' : 'visible', md: 'visible' } }}>{i + 1}</Mono>;
               })}
             </Box>
           </>
@@ -596,8 +600,8 @@ function DailySpend({ month }) {
   );
 }
 
-const thSx = { ...monoSx, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'cockpit.tx3', textAlign: 'left', px: 1.25, height: 32, borderBottom: 1, borderColor: 'cockpit.line', whiteSpace: 'nowrap' };
-const tdSx = { px: 1.25, height: ROW, borderBottom: 1, borderColor: 'cockpit.line', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 0 };
+const thSx = { ...monoSx, fontSize: 13, fontWeight: 500, color: 'cockpit.tx3', textAlign: 'left', px: 1.5, height: 36, borderBottom: 1, borderColor: 'cockpit.line', whiteSpace: 'nowrap' };
+const tdSx = { px: 1.5, height: ROW, borderBottom: 1, borderColor: 'cockpit.line', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 0 };
 const tableSx = { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', '& tbody tr:hover td': { bgcolor: 'cockpit.panel2' } };
 const hideXs = { display: { xs: 'none', md: 'table-cell' } };
 
@@ -622,23 +626,23 @@ function TopMerchants({ query }) {
         return (
           <Box component="table" sx={tableSx}>
             <thead><tr>
-              <Box component="th" sx={{ ...thSx, width: 30 }}>#</Box>
+              <Box component="th" sx={{ ...thSx, width: 40 }}>#</Box>
               <Box component="th" sx={thSx}>Merchant</Box>
-              <Box component="th" sx={{ ...thSx, width: 28, textAlign: 'right' }}>N</Box>
-              <Box component="th" sx={{ ...thSx, width: 64, textAlign: 'right' }}>Avg</Box>
-              <Box component="th" sx={{ ...thSx, width: 74, textAlign: 'right' }}>Total</Box>
+              <Box component="th" sx={{ ...thSx, width: 44, textAlign: 'right' }}>N</Box>
+              <Box component="th" sx={{ ...thSx, width: 76, textAlign: 'right' }}>Avg</Box>
+              <Box component="th" sx={{ ...thSx, width: 88, textAlign: 'right' }}>Total</Box>
             </tr></thead>
             <tbody>
               {top.map((t, i) => {
                 const color = categoryColor(t.category_id, categories, theme.palette.mode, t.color);
                 return (
                   <tr key={t.name}>
-                    <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 11.5, color: 'cockpit.tx3' }}>{String(i + 1).padStart(2, '0')}</Box>
+                    <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12.5, color: 'cockpit.tx3' }}>{i + 1}</Box>
                     <Box component="td" sx={tdSx} title={t.name}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
                         <Box sx={{ width: 6, height: 6, borderRadius: '1px', flex: 'none', bgcolor: color }} />
                         <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</Box>
-                        {t.category && <Mono sx={{ fontSize: 10.5, color: 'cockpit.tx3', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.category}</Mono>}
+                        {t.category && <Mono sx={{ fontSize: 12.5, color: 'cockpit.tx3', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.category}</Mono>}
                       </Box>
                       <Box sx={{ height: 2, mt: '2px', bgcolor: 'cockpit.line' }}><Box sx={{ height: 2, width: `${(t.total / max) * 100}%`, bgcolor: color }} /></Box>
                     </Box>
@@ -722,14 +726,14 @@ export function Reports() {
       <Title title="Reports" />
       <Stack direction="row" sx={{ alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
         <Typography component="h1" sx={{ fontWeight: 700, fontSize: 14.5 }}>Reports</Typography>
-        <Label sx={{ textTransform: 'none', letterSpacing: '0.02em' }}>{formatMonth(month)} · {num(m.txn_count)} transactions</Label>
+        <Label sx={{ '&::first-letter': { textTransform: 'uppercase' } }}>{formatMonth(month)} · {num(m.txn_count)} transactions</Label>
         <Box sx={{ flexGrow: 1 }} />
         <MonthPicker months={months} index={index} onChange={setIndex} />
       </Stack>
 
       <KpiRow months={months} index={index} txQuery={txQuery} />
 
-      <Panel id="panel-1" num={1} title="Year to date" meta="running income and expenses"
+      <Panel id="panel-1" title="Year to date" meta="running income and expenses"
         right={<Label sx={{ display: { xs: 'none', sm: 'flex' }, gap: 1.25, '& i': { display: 'inline-block', width: 12, height: 2, mr: 0.5, verticalAlign: 'middle' } }}>
           <span><Box component="i" sx={{ bgcolor: seriesColor(0, theme.palette.mode) }} />Income</span>
           <span><Box component="i" sx={{ bgcolor: seriesColor(1, theme.palette.mode) }} />Expenses</span>
@@ -739,30 +743,30 @@ export function Reports() {
       </Panel>
 
       <Box sx={rowSx}>
-        <Panel id="panel-2" num={2} title="Balance" meta="end of month · investments at cost" sx={span(12, 5)}><BalanceChart month={month} /></Panel>
-        <Panel id="panel-3" num={3} title="Spend pace" meta="cumulative" sx={span(7, 4)}><SpendPace months={months} index={index} /></Panel>
-        <Panel id="panel-4" num={4} title="Month ledger" right={<Label>{month === thisMonth() ? `Day ${new Date().getDate()}/${days}` : `${days} days`}</Label>} sx={span(5, 3)}>
+        <Panel id="panel-2" title="Balance" meta="end of month · investments at cost" sx={span(12, 5)}><BalanceChart month={month} /></Panel>
+        <Panel id="panel-3" title="Spend pace" meta="cumulative" sx={span(7, 4)}><SpendPace months={months} index={index} /></Panel>
+        <Panel id="panel-4" title="Month ledger" right={<Label>{month === thisMonth() ? `Day ${new Date().getDate()}/${days}` : `${days} days`}</Label>} sx={span(5, 3)}>
           <MonthLedger months={months} index={index} txQuery={txQuery} />
         </Panel>
       </Box>
 
       <Box sx={rowSx}>
-        <Panel id="panel-5" num={5} title="Cash flow" meta="click a month"
+        <Panel id="panel-5" title="Cash flow" meta="click a month"
           right={<Label sx={{ display: 'flex', gap: 1, '& i': { display: 'inline-block', width: 7, height: 7, mr: 0.5 } }}><span><Box component="i" sx={{ bgcolor: 'primary.main' }} />In</span><span><Box component="i" sx={{ bgcolor: 'cockpit.out' }} />Out</span><span><Box component="i" sx={{ bgcolor: 'cockpit.pos', height: '2px !important', verticalAlign: 'middle' }} />Net</span></Label>}
           sx={span(12, 5)}>
           <CashFlow months={months} index={index} onPick={setIndex} />
         </Panel>
-        <Panel id="panel-6" num={6} title="Spending by category" right={<Mono sx={{ fontSize: 12.5, fontWeight: 600 }}>{amount(m.expenses)}</Mono>} sx={span(12, 7)}>
+        <Panel id="panel-6" title="Spending by category" right={<Mono sx={{ fontSize: 12.5, fontWeight: 600 }}>{amount(m.expenses)}</Mono>} sx={span(12, 7)}>
           <CategoryTable months={months} index={index} />
         </Panel>
       </Box>
 
       <Box sx={rowSx}>
-        <Panel id="panel-7" num={7} title="Daily spending" sx={span(12, 7)}
-          right={daily && <Mono sx={{ fontSize: 11.5, color: 'cockpit.tx3', display: { xs: 'none', sm: 'inline' }, '& b': { color: 'cockpit.tx' } }}>AVG <b>{amount(daily.average)}</b> · PEAK <b>{amount(daily.peak)}</b> · NO-SPEND <b>{daily.zero}d</b></Mono>}>
+        <Panel id="panel-7" title="Daily spending" sx={span(12, 7)}
+          right={daily && <Mono sx={{ fontSize: 14, color: 'cockpit.tx3', display: { xs: 'none', sm: 'inline' }, '& b': { color: 'cockpit.tx' } }}>Avg <b>{amount(daily.average)}</b> · peak <b>{amount(daily.peak)}</b> · no-spend days <b>{daily.zero}</b></Mono>}>
           <DailySpend month={month} />
         </Panel>
-        <Panel id="panel-8" num={8} title="Top merchants" meta="by spend" sx={span(12, 5)}><TopMerchants query={txQuery} /></Panel>
+        <Panel id="panel-8" title="Top merchants" meta="by spend" sx={span(12, 5)}><TopMerchants query={txQuery} /></Panel>
       </Box>
 
     </Box>

@@ -11,7 +11,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { CategorySelect } from '../components/CategorySelect.jsx';
 import { CategoryTag } from '../components/CategoryTag.jsx';
 import { useIdentical } from '../components/SetCategoryDialog.jsx';
-import { Kbd, Label, Mono } from '../dashboard/parts.jsx';
+import { Label, Mono } from '../dashboard/parts.jsx';
 import { amount, formatDate, formatShortMonth, formatTime, normalizeText, parseDate, signedAmount, sourceLabel, suggestPrefix, txnName, txnTypeLabel } from '../format.js';
 import { MIN_PREFIX, PrefixField, Segments } from '../components/PrefixField.jsx';
 import { useRefreshAfterWrite } from '../hooks.js';
@@ -47,12 +47,12 @@ function History({ transaction }) {
     <Box>
       <Label component="div" sx={{ mb: 0.625 }}>Same description · history</Label>
       <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: 34, borderBottom: 1, borderColor: 'cockpit.line2' }} aria-hidden>
-        {totals.map((v, i) => <Box key={months[i]} title={`${formatShortMonth(months[i])} · ${amount(v)} €`} sx={{ flex: '1 1 0', height: `${(v / max) * 100}%`, bgcolor: i === 5 ? 'primary.main' : 'cockpit.line2' }} />)}
+        {totals.map((v, i) => <Box key={months[i]} title={`${formatShortMonth(months[i])} · ${amount(v)} €`} sx={{ flex: '1 1 0', height: `${(v / max) * 100}%`, borderRadius: '3px 3px 0 0', bgcolor: i === 5 ? 'primary.main' : 'cockpit.line2' }} />)}
       </Box>
-      <Mono sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: 'cockpit.tx3', mt: '3px' }}>
-        {months.map((m) => <span key={m}>{formatShortMonth(m).toUpperCase()}</span>)}
+      <Mono sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'cockpit.tx3', mt: '3px' }}>
+        {months.map((m) => <span key={m}>{formatShortMonth(m)}</span>)}
       </Mono>
-      <Mono component="div" sx={{ fontSize: 11.5, color: 'cockpit.tx3', mt: 0.75, '& b': { color: 'cockpit.tx', fontWeight: 600 } }}>
+      <Mono component="div" sx={{ fontSize: 13, color: 'cockpit.tx3', mt: 0.75, '& b': { color: 'cockpit.tx', fontWeight: 600 } }}>
         <b>{rows.length}</b> {rows.length === 1 ? 'time' : 'times'} · avg <b>{amount(avg)}</b> · first <b>{formatDate(first.txn_date)}</b>
       </Mono>
     </Box>
@@ -62,8 +62,8 @@ function History({ transaction }) {
 function Fact({ k, children }) {
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: '104px minmax(0, 1fr)', columnGap: 1, alignItems: 'baseline', py: 0.875, borderBottom: 1, borderColor: 'cockpit.line' }}>
-      <Label sx={{ fontSize: 10.5 }}>{k}</Label>
-      <Box sx={{ fontSize: 13, minWidth: 0, overflowWrap: 'anywhere' }}>{children}</Box>
+      <Label>{k}</Label>
+      <Box sx={{ fontSize: 14, minWidth: 0, overflowWrap: 'anywhere' }}>{children}</Box>
     </Box>
   );
 }
@@ -128,8 +128,7 @@ export function Inspector({ transaction: t, onClose, onPrev, onNext }) {
   return (
     <Box component="aside" aria-label="Selected transaction" sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, bgcolor: 'cockpit.panel', height: '100%' }}>
       <Stack direction="row" sx={{ alignItems: 'center', gap: 0.5, height: { xs: 52, md: 40 }, px: 1.5, '& .MuiIconButton-root': { p: { xs: '10px', md: '6px' } }, borderBottom: 1, borderColor: 'cockpit.line', flex: 'none' }}>
-        <Mono sx={{ fontSize: 10.5, color: 'cockpit.tx3', border: 1, borderColor: 'cockpit.line2', borderRadius: '2px', px: 0.5, lineHeight: '14px' }}>INSPECT</Mono>
-        <Label>TXN #{t.id}</Label>
+        <Box sx={{ fontSize: 15, fontWeight: 600 }}>Transaction</Box>
         <Box sx={{ flexGrow: 1 }} />
         <IconButton aria-label="Previous transaction (K)" onClick={onPrev} disabled={!onPrev}><KeyboardArrowUpIcon sx={{ fontSize: 20 }} /></IconButton>
         <IconButton aria-label="Next transaction (J)" onClick={onNext} disabled={!onNext}><KeyboardArrowDownIcon sx={{ fontSize: 20 }} /></IconButton>
@@ -139,39 +138,36 @@ export function Inspector({ transaction: t, onClose, onPrev, onNext }) {
       <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.75, overflow: 'auto' }}>
         <Box>
           {unc
-            ? <Mono component="div" sx={{ fontSize: 11.5, color: 'cockpit.warn', letterSpacing: '0.06em' }}>● UNCATEGORISED</Mono>
+            ? <Mono component="div" sx={{ fontSize: 13.5, fontWeight: 500, color: 'cockpit.warn' }}>No category yet</Mono>
             : <CategoryTag categoryId={t.category_id} name={t.category} color={t.color} />}
-          <Box sx={{ fontSize: 14.5, fontWeight: 600, mt: 0.5, overflowWrap: 'anywhere', ...(t.merchant_name ? {} : { fontFamily: (th) => th.typography.fontFamily }) }}>{name}</Box>
-          {detail && <Mono component="div" sx={{ fontSize: 11.5, color: 'cockpit.tx3', overflowWrap: 'anywhere' }}>{detail}</Mono>}
+          <Box sx={{ fontSize: 16, fontWeight: 600, mt: 0.75, overflowWrap: 'anywhere', ...(t.merchant_name ? {} : { fontFamily: (th) => th.typography.fontFamily }) }}>{name}</Box>
+          {detail && <Mono component="div" sx={{ fontSize: 13, color: 'cockpit.tx3', overflowWrap: 'anywhere' }}>{detail}</Mono>}
           <Stack direction="row" sx={{ alignItems: 'baseline', gap: 0.75, mt: 0.5 }}>
-            <Mono sx={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', color: credit ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(t.signed_amount)}</Mono>
-            <Mono sx={{ fontSize: 12.5, color: 'cockpit.tx3' }}>EUR</Mono>
+            <Mono sx={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.01em', color: credit ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(t.signed_amount)}</Mono>
+            <Mono sx={{ fontSize: 15, color: 'cockpit.tx3' }}>€</Mono>
           </Stack>
         </Box>
 
         <Box>
-          <Fact k="Date"><Mono>{weekday.format(date).toUpperCase()} {formatDate(t.txn_date)}{formatTime(t.txn_at) ? ` · ${formatTime(t.txn_at)}` : ''}</Mono></Fact>
+          <Fact k="Date"><Mono>{weekday.format(date)} {formatDate(t.txn_date)}{formatTime(t.txn_at) ? ` · ${formatTime(t.txn_at)}` : ''}</Mono></Fact>
           {t.posting_date && t.posting_date !== t.txn_date && <Fact k="Posted"><Mono>{formatDate(t.posting_date)}</Mono></Fact>}
           {t.value_date && t.value_date !== t.txn_date && <Fact k="Value date"><Mono>{formatDate(t.value_date)}</Mono></Fact>}
           {txnTypeLabel(t.txn_type) && <Fact k="Type">{txnTypeLabel(t.txn_type)}</Fact>}
           {t.source && <Fact k="Source">{sourceLabel(t.source)}</Fact>}
           <Fact k="Category by">{t.category_source === 'rule' ? 'Rule' : t.category_source === 'manual' ? 'You' : <Box component="span" sx={{ color: 'cockpit.tx3', fontStyle: 'italic' }}>not set</Box>}</Fact>
-          {t.description && <Fact k="Bank text"><Mono sx={{ fontSize: 12 }}>{t.description}</Mono></Fact>}
+          {t.description && <Fact k="Bank text"><Mono sx={{ fontSize: 13, color: 'cockpit.tx2' }}>{t.description}</Mono></Fact>}
         </Box>
 
-        <Box component="form" onSubmit={save} sx={{ border: 1, borderColor: 'cockpit.line2', borderRadius: '3px', p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.25, bgcolor: 'cockpit.panel2' }}>
-          <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-            <Label sx={{ color: 'cockpit.tx' }}>Categorise</Label>
-            <Kbd>C</Kbd>
-          </Stack>
+        <Box component="form" onSubmit={save} sx={{ borderRadius: '12px', p: 2, display: 'flex', flexDirection: 'column', gap: 1.25, bgcolor: 'cockpit.panel2' }}>
+          <Box sx={{ fontSize: 15, fontWeight: 600 }}>Categorise</Box>
           <CategorySelect id="inspector-category" value={categoryId} onChange={setCategoryId} />
           <TextField label="Note" value={note} onChange={(e) => setNote(e.target.value)} slotProps={{ htmlInput: { maxLength: 200 } }} fullWidth />
           <Box>
-            <Label component="div" sx={{ fontSize: 10.5, mb: 0.5 }}>Apply to</Label>
+            <Label component="div" sx={{ mb: 0.5 }}>Apply to</Label>
             <Segments fullWidth label="Apply to" value={scope} onChange={setScope}
-              options={[['one', 'THIS ONE'], ...(others > 0 ? [['same', `SAME · ${others + 1}`]] : []), ['prefix', 'STARTS WITH']]} />
+              options={[['one', 'This one'], ...(others > 0 ? [['same', `All ${others + 1} same`]] : []), ['prefix', 'Starts with']]} />
             {scope === 'same' && (
-              <Mono component="div" sx={{ fontSize: 11, color: 'cockpit.tx3', mt: 0.75 }}>
+              <Mono component="div" sx={{ fontSize: 13, color: 'cockpit.tx3', mt: 0.75 }}>
                 Every transaction with exactly this description, now and in future imports.{manualOthers > 0 ? ` ${manualOthers} set by hand keep their category.` : ''}
               </Mono>
             )}
