@@ -6,12 +6,22 @@ Reads Alpha Bank alert emails from Gmail, extracts each transaction and sends it
 Gmail (alert emails) --Apps Script, hourly--> fin_ingest_email_transactions(jsonb) --> raw_email_transactions --> transactions
 ```
 
-Two kinds of alert are understood:
+These alerts are understood:
 
 | Sender | What it has | Becomes |
 | --- | --- | --- |
 | `alerts@alpha.gr` (subject "Alpha Bank – Υπηρεσία Alpha Alerts. ΛΟΓΑΡΙΑΣΜΟΣ ***NNN") | account, date and time, type (card purchase, ATM, payment, incoming…), amount, debit/credit; **no merchant** | `account_alert` |
 | `ebanking@alpha.gr` (subject "Alpha Alerts") | card, date and time, amount and currency, **merchant** | `card_alert` |
+| `IBankV2Email@piraeusbank.gr` ("Μεταβολή στο Υπόλοιπο του Λογαριασμού") | account, date and time, type, amount, debit/credit, the two reason lines (payer or payee and note; account numbers and references are dropped), **balance** | `account_alert` |
+| `Nbg.donotreply@nbg.gr` (one sentence: card purchase, refund, withdrawal, transfer in or out, standing order) | account, date and time, amount, merchant for card payments | `account_alert` |
+
+Piraeus also sends an "Ενημέρωση Εγχρήματης Συναλλαγής" confirmation for transfers made in e-banking; it repeats the alert and is skipped.
+
+**Which account?** An alert's masked account number is looked up only among the accounts of the bank that sent it (`fin_bank_for_sender`, `db/007_more_banks.sql`). An alert for an account that is not in `public.accounts`, such as a business account at the same bank, is rejected with "no account matches the mask" and never counted. Accounts are added in the SQL editor (bank, name, `alert_mask` or `iban`), not in this repo.
+
+**Balances.** Piraeus prints the balance on every alert; the newest becomes that account's balance anchor, so an account with alerts but no statements still gets a balance line. NBG alerts carry no balance.
+
+**Transfers between own accounts** (`db/008_own_transfers.sql`): rules put the side whose description names the other account, or the owner, in a `transfer` category (neither income nor expense). After every import, an uncategorised row on another account with the opposite direction, the same amount and a date within 3 days gets the same category when it is the only such counterpart.
 
 ### One payment, one row
 
@@ -57,7 +67,7 @@ A debit-card purchase triggers both alerts within seconds, and the same payment 
    | Property | Value |
    | --- | --- |
    | `NEON_PASSWORD` | the `etl_ingest` password, exactly as you set it (special characters are fine; the script encodes it) |
-   | `ALERT_SENDERS` | `alerts@alpha.gr,ebanking@alpha.gr` (all mail from these senders is read, wherever it is filed; the parsers skip anything that is not a transaction) |
+   | `ALERT_SENDERS` | `alerts@alpha.gr,ebanking@alpha.gr,IBankV2Email@piraeusbank.gr,Nbg.donotreply@nbg.gr` (all mail from these senders is read, wherever it is filed; the parsers skip anything that is not a transaction) |
 
 4. **Check.** Run `testConnection()`; the log should say `Connected as etl_ingest`. Then run `dryRun()` and compare the logged transactions with the emails. It writes nothing. The first run looks back 400 days (`FIRST_RUN_DAYS` in `src/config.js`); later runs continue from the last one.
 

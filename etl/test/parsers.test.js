@@ -76,3 +76,40 @@ test('account alert: order, fee, reversal and withdrawal types', () => {
   assert.equal(type('ΑΝΑΛΗΨΗ'), 'atm_withdrawal');
   assert.equal(type('ΜΕΤΑΦΟΡΑ ΣΕ ΛΟΓΑΡΙΑΣΜΟ'), 'transfer');
 });
+
+const row = (t) => [t.account_mask, t.txn_date, t.txn_time, t.direction, t.amount, t.txn_type, t.balance, t.description];
+
+test('Piraeus: incoming rent keeps payer and note, and the balance', () => {
+  const t = one(f.piraeus.rentIn);
+  assert.equal(t.alert_type, 'account_alert');
+  assert.deepEqual(row(t), ['1234-***-567', '2026-02-01', '09:45', 'credit', '700.00', 'transfer', '2100.50', 'ΕΙΣΕΡΧΟΜΕΝΟ ΕΜΒΑΣΜΑ B/O EXAMPLE TENANT ΕΝΟΙΚΙΟ ΦΕΒΡΟΥΑΡΙΟΥ']);
+});
+
+test('Piraeus: transfer out drops the account number from the description', () => {
+  assert.deepEqual(row(one(f.piraeus.rentOut)), ['1234-***-567', '2026-02-01', '08:30', 'debit', '450.00', 'transfer', '1400.50', 'ΜΕΤΑΦΟΡΑ ΣΕ ΛΟΓ.ΤΡΙΤΟΥ EXAMPLE PERSON ΕΝΟΙΚΙΟ']);
+});
+
+test('Piraeus: card payment is the merchant alone; fee and ATM types', () => {
+  assert.deepEqual([one(f.piraeus.card).txn_type, one(f.piraeus.card).description], ['card_purchase', 'EXAMPLE CINEMA ATHINA']);
+  assert.deepEqual([one(f.piraeus.fee).txn_type, one(f.piraeus.fee).amount, one(f.piraeus.fee).description], ['fee', '0.50', 'ΠΡΟΜΗΘΕΙΑ ΕΜΒΑΣΜΑΤΟΣ']);
+  const atm = one(f.piraeus.atm);
+  assert.deepEqual([atm.txn_type, atm.amount, atm.description], ['atm_withdrawal', '1180.00', 'ΑΤΜ-ΑΝΑΛΗΨΗ ΜΕΤΡΗΤΩΝ EXAMPLE STREET 2']);
+});
+
+test('Piraeus: the transfer confirmation email is skipped, not reported', () => {
+  assert.deepEqual(parseEmail(f.piraeus.confirmation), { type: 'ignored', transactions: [] });
+});
+
+test('NBG: money out, money in and a credited order', () => {
+  assert.deepEqual(row(one(f.nbg.out)), ['*9999', '2026-02-05', '12:13', 'debit', '3000.00', 'transfer', undefined, 'ΜΕΤΑΦΟΡΑ ΑΠΟ ΤΟΝ ΛΟΓΑΡΙΑΣΜΟ']);
+  assert.deepEqual(row(one(f.nbg.in)), ['*9999', '2026-02-06', '18:47', 'credit', '25.00', 'transfer', undefined, 'ΜΕΤΑΦΟΡΑ ΣΤΟ ΛΟΓΑΡΙΑΣΜΟ']);
+  assert.deepEqual(row(one(f.nbg.order)).slice(3), ['credit', '15.00', 'transfer', undefined, 'ΠΙΣΤΩΣΗ ΕΝΤΟΛΗΣ']);
+});
+
+test('NBG: debit card purchase names the merchant', () => {
+  assert.deepEqual(row(one(f.nbg.card)), ['*9999', '2026-02-08', '13:41', 'debit', '101.01', 'card_purchase', undefined, 'EXAMPLE FUEL']);
+});
+
+test('NBG: other notices are not recognised', () => {
+  assert.equal(parseEmail(f.nbg.unknown), null);
+});

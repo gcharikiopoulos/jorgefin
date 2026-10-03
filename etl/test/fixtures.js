@@ -1,4 +1,5 @@
-// Invented emails that mirror the layout of Alpha Bank alerts. No real data.
+// Invented emails that mirror the layout of Alpha Bank, Piraeus Bank and National
+// Bank of Greece alerts. No real data: names, accounts and amounts are made up.
 
 const accountAlert = (date, time, type, amount, side) => `| |
 | [](http://www.alpha.gr/) |
@@ -44,4 +45,55 @@ module.exports = {
   cardHtml: { id: 'msg-c4', from: CARD_FROM, subject: 'Alpha Alerts', date: '2026-01-12T06:00:00Z', body: '', html: cardHtml('12/01/2026', '08:46', '3,98', 'EXAMPLE KIOSK Greece') },
   cardStarred: { id: 'msg-c5', from: CARD_FROM, subject: 'Alpha Alerts', date: '2026-01-12T06:00:00Z', body: cardStarred('12/01/2026', '08:46', '3,98', 'EXAMPLE KIOSK Greece') },
   unrelated: { id: 'msg-x', from: 'alerts@alpha.gr', subject: 'News', date: '2026-01-12T07:00:00Z', body: 'Νέα προϊόντα από την Alpha Bank.' },
+};
+
+// Piraeus balance-change alert (plain text as Gmail renders it: a table of labelled fields).
+const piraeus = (amount, type, date, balance, reason1, reason2) => `Υπηρεσία Piraeus Alerts
+
+| |
+| Μεταβολή στο Υπόλοιπο του Λογαριασμού |
+
+| |
+| Λογαριασμός: | 1234-***-567 |
+| Ποσό Συναλλαγής: | ${amount} |
+| Τύπος Συναλλαγής: | ${type} |
+| Ημερομηνία Εκτέλεσης: | ${date} |
+| Ημερομηνία Αξίας: | 01/02/2026 |
+| Λογιστικό Υπόλοιπο: | ${balance} EUR |
+| Διαθέσιμο Υπόλοιπο: | ${balance} EUR |
+| Αιτιολογία 1: | ${reason1} |
+| Αιτιολογία 2: | ${reason2} |
+
+| |
+| | support@example.com Email Επικοινωνίας |
+| Copyright Piraeus |`;
+
+// NBG alert: an HTML-only email with one sentence.
+const nbg = (sentence) => `<html><head><title>NBG</title><style>p{color:#000}</style></head><body><table><tr><td><p>Αγαπητέ πελάτη,
+<br>
+<br>
+${sentence}
+<br>
+<br>
+Ευχαριστούμε για την εμπιστοσύνη σας.<br>Με εκτίμηση,<br>
+Εθνική Τράπεζα</p></td></tr></table></body></html>`;
+
+const PIRAEUS_FROM = 'IBankV2Email@piraeusbank.gr';
+const NBG_FROM = 'Nbg.donotreply@nbg.gr';
+
+module.exports.piraeus = {
+  rentIn: { id: 'msg-p1', from: PIRAEUS_FROM, subject: 'ΕΙΣΕΡΧΟΜΕΝΟ ΕΜΒΑΣΜΑ 700 EUR (ΠΙ)', date: '2026-02-01T07:00:00Z', body: piraeus('700 EUR (ΠΙ)', 'ΕΙΣΕΡΧΟΜΕΝΟ ΕΜΒΑΣΜΑ', '01/02/26 09:45', '2100.50', 'B/O EXAMPLE TENANT', 'ΕΝΟΙΚΙΟ ΦΕΒΡΟΥΑΡΙΟΥ') },
+  rentOut: { id: 'msg-p2', from: PIRAEUS_FROM, subject: 'x', date: '2026-02-01T06:30:00Z', body: piraeus('-450 EUR (ΧΡ)', 'ΜΕΤΑΦΟΡΑ ΣΕ ΛΟΓ.ΤΡΙΤΟΥ', '01/02/26 08:30', '1400.50', '1111222233334', 'EXAMPLE PERSON ΕΝΟΙΚΙΟ') },
+  card: { id: 'msg-p3', from: PIRAEUS_FROM, subject: 'x', date: '2026-02-02T06:30:00Z', body: piraeus('-25 EUR (ΧΡ)', 'ΑΓΟΡΑ ΜΕ ΚΑΡΤΑ', '02/02/26 08:27', '1375.50', 'EXAMPLE CINEMA ATHINA', '25,00 EUR123456xxxxxx0000') },
+  fee: { id: 'msg-p4', from: PIRAEUS_FROM, subject: 'x', date: '2026-02-03T06:30:00Z', body: piraeus('-0.50 EUR (ΧΡ)', 'ΠΡΟΜΗΘΕΙΑ ΕΜΒΑΣΜΑΤΟΣ', '03/02/26 09:45', '1375.00', '', '') },
+  atm: { id: 'msg-p5', from: PIRAEUS_FROM, subject: 'x', date: '2026-02-04T20:00:00Z', body: piraeus('-1.180,00 EUR (ΧΡ)', 'ΑΤΜ-ΑΝΑΛΗΨΗ ΜΕΤΡΗΤΩΝ', '04/02/26 22:56', '195.00', 'EXAMPLE STREET 2', '0000123456-S1D2000123456XXXXX10000 12345678') },
+  confirmation: { id: 'msg-p6', from: PIRAEUS_FROM, subject: 'Ενημέρωση Εγχρήματης Συναλλαγής – Μην απαντήσετε σε αυτό το email.', date: '2026-02-01T06:30:00Z', body: 'Μεταφορά προς Τρίτους εντός Τράπεζας Επιτυχής Εκτέλεση' },
+};
+
+module.exports.nbg = {
+  out: { id: 'msg-n1', from: NBG_FROM, subject: 'Alerts', date: '2026-02-05T10:13:30Z', body: '', html: nbg('Σας ενημερώνουμε για μεταφορά ποσού 3000.00 € από τον λογαριασμό *9999 05/02/2026 12:13:29.') },
+  in: { id: 'msg-n2', from: NBG_FROM, subject: 'Alerts', date: '2026-02-06T10:00:00Z', body: '', html: nbg('Σας ενημερώνουμε για την μεταφορά ποσού 25.00 &euro; στο λογαριασμό *9999 06/02/2026 18:47:20.') },
+  order: { id: 'msg-n3', from: NBG_FROM, subject: 'Alerts', date: '2026-02-07T10:00:00Z', body: '', html: nbg('Σας ενημερώνουμε για πίστωση εντολής ποσού 15.00 € στο λογαριασμό *9999 07/02/2026 17:43:52.') },
+  card: { id: 'msg-n4', from: NBG_FROM, subject: 'Alerts', date: '2026-02-08T10:00:00Z', body: '', html: nbg('Σας ενημερώνουμε για αγορά ποσού 101,01 € από ΑΓΟΡΑ EXAMPLE FUEL με χρεωστική κάρτα μέσω του λογαριασμού *9999 08/02/2026 13:41:21.') },
+  unknown: { id: 'msg-n5', from: NBG_FROM, subject: 'Alerts', date: '2026-02-09T10:00:00Z', body: '', html: nbg('Σας ενημερώνουμε ότι η σύνδεσή σας ήταν επιτυχής.') },
 };
