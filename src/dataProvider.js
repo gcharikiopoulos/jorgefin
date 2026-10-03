@@ -205,8 +205,8 @@ export const dataProvider = {
     }),
 
   // Month-end balance across all accounts, oldest first:
-  // [{ month: 'YYYY-MM-01', day, balance, cash, saved }]. cash is the day-to-day
-  // accounts, saved the savings and investment accounts (investments at cost).
+  // [{ month: 'YYYY-MM-01', day, balance, cash, savings, investment, saved }]: the
+  // day-to-day accounts, savings accounts, investments at cost, and savings + investments.
   // The last day of the latest month is the most recent known day, not the month end.
   getBalanceHistory: () =>
     guard(async () => {
@@ -219,15 +219,15 @@ export const dataProvider = {
       }
       const byDay = new Map();
       for (const r of rows) {
-        const d = byDay.get(r.day) || { cash: 0, saved: 0 };
-        if ((r.kind || 'cash') === 'cash') d.cash += num(r.balance);
-        else d.saved += num(r.balance);
+        const d = byDay.get(r.day) || { cash: 0, savings: 0, investment: 0 };
+        const kind = ['savings', 'investment'].includes(r.kind) ? r.kind : 'cash';
+        d[kind] += num(r.balance);
         byDay.set(r.day, d);
       }
       const byMonth = new Map();
       for (const day of [...byDay.keys()].sort()) {
-        const { cash, saved } = byDay.get(day);
-        byMonth.set(`${day.slice(0, 7)}-01`, { month: `${day.slice(0, 7)}-01`, day, balance: cash + saved, cash, saved });
+        const { cash, savings, investment } = byDay.get(day);
+        byMonth.set(`${day.slice(0, 7)}-01`, { month: `${day.slice(0, 7)}-01`, day, balance: cash + savings + investment, cash, savings, investment, saved: savings + investment });
       }
       return [...byMonth.values()];
     }),

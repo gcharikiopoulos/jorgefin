@@ -1,16 +1,16 @@
 import { monoSx } from '../theme.js';
 
-// Shared sizes and styles for the cockpit tables. Rows and controls grow to a
+// Shared sizes and styles for the tables. Rows and controls grow to a
 // 44px touch target on phones.
 
-export const ROW = { xs: 44, md: 34 };
-export const CONTROL = { xs: 44, md: 34 };
+export const ROW = { xs: 48, md: 40 };
+export const CONTROL = { xs: 44, md: 36 };
 export const TOUCH = '@media (pointer: coarse)';
 export const TOP_BAR = 48;
 
 
-export const thSx = { ...monoSx, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'cockpit.tx3', textAlign: 'left', px: 1.25, height: { xs: 40, md: 32 }, borderBottom: 1, borderColor: 'cockpit.line2', whiteSpace: 'nowrap', bgcolor: 'cockpit.panel' };
-export const tdSx = { px: 1.25, height: ROW, fontSize: 13.5, borderBottom: 1, borderColor: 'cockpit.line', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 0 };
+export const thSx = { ...monoSx, fontSize: 13, fontWeight: 500, color: 'cockpit.tx3', textAlign: 'left', px: 1.5, height: { xs: 40, md: 36 }, borderBottom: 1, borderColor: 'cockpit.line', whiteSpace: 'nowrap', bgcolor: 'cockpit.panel' };
+export const tdSx = { px: 1.5, height: ROW, fontSize: 14, borderBottom: 1, borderColor: 'cockpit.line', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 0 };
 export const tableSx = { width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' };
 export const hideBelowMd = { display: { xs: 'none', md: 'table-cell' } };
 export const hideBelowSm = { display: { xs: 'none', sm: 'table-cell' } };

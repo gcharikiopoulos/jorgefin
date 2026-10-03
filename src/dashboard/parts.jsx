@@ -1,26 +1,23 @@
-// Building blocks for the cockpit dashboard: panel shell with loading / empty / error
-// states, small-caps labels, key-figure tiles with mini bars, warning lights.
+// Building blocks for the reports: panel shell with loading / empty / error states,
+// quiet labels, key-figure tiles with mini bars, warning lights.
 
 import { Box, Button, Skeleton, Stack, Typography } from '@mui/material';
 import { labelSx, monoSx } from '../theme.js';
 import { percent } from '../format.js';
-import { TOUCH } from '../components/dense.js';
 
 export const Label = ({ children, sx, ...rest }) => <Box component="span" sx={{ ...labelSx, ...sx }} {...rest}>{children}</Box>;
 export const Mono = ({ children, sx, component = 'span', ...rest }) => <Box component={component} sx={{ ...monoSx, ...sx }} {...rest}>{children}</Box>;
 
-export const Kbd = ({ children }) => (
-  <Box component="kbd" sx={{ ...monoSx, fontSize: 10.5, color: 'cockpit.tx3', border: 1, borderColor: 'cockpit.line2', borderBottomWidth: 2, borderRadius: '2px', px: '4px', lineHeight: '14px', [TOUCH]: { display: 'none' } }}>{children}</Box>
-);
+// Keyboard hints are no longer shown (the shortcuts still work).
+export const Kbd = () => null;
 
 // Panel with a 24px header strip: shortcut number, title, qualifier, and right-hand readouts.
-export function Panel({ id, num, title, meta, right, children, sx, bodySx }) {
+export function Panel({ id, title, meta, right, children, sx, bodySx }) {
   return (
-    <Box id={id} component="section" tabIndex={-1} sx={{ bgcolor: 'cockpit.panel', border: 1, borderColor: 'cockpit.line', borderRadius: '3px', minWidth: 0, display: 'flex', flexDirection: 'column', outline: 'none', '&:focus-visible': { borderColor: 'primary.main' }, ...sx }}>
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', height: 34, px: 1.5, borderBottom: 1, borderColor: 'cockpit.line', flex: 'none', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-        {num != null && <Kbd>{num}</Kbd>}
-        <Label component="h2" sx={{ color: 'cockpit.tx', m: 0 }}>{title}</Label>
-        {meta && <Label>{meta}</Label>}
+    <Box id={id} component="section" tabIndex={-1} sx={{ bgcolor: 'cockpit.panel', borderRadius: '14px', minWidth: 0, display: 'flex', flexDirection: 'column', outline: 'none', '&:focus-visible': { boxShadow: (t) => `0 0 0 2px ${t.palette.primary.main}` }, ...sx }}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline', minHeight: 52, pt: 1.75, px: 2.5, flex: 'none', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+        <Label component="h2" sx={{ color: 'cockpit.tx', m: 0, fontSize: 17, fontWeight: 600 }}>{title}</Label>
+        {meta && <Label sx={{ display: { xs: 'none', sm: 'inline' } }}>{meta}</Label>}
         <Box sx={{ flexGrow: 1 }} />
         {right}
       </Stack>
@@ -91,7 +88,7 @@ export function KpiTile({ label, value, unit, valueColor, deltaText, deltaColor,
       component={onClick ? 'button' : 'div'}
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      sx={{ font: 'inherit', color: 'inherit', textAlign: 'left', bgcolor: 'cockpit.panel', border: 1, borderColor: 'cockpit.line', borderRadius: '3px', p: { xs: '10px 12px', md: '10px 12px' }, display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 0, cursor: onClick ? 'pointer' : 'default', '&:hover': onClick ? { borderColor: 'cockpit.line2' } : undefined }}
+      sx={{ font: 'inherit', color: 'inherit', textAlign: 'left', bgcolor: 'cockpit.panel', border: 0, borderRadius: '14px', p: { xs: '14px 16px', md: '16px 20px' }, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0, cursor: onClick ? 'pointer' : 'default', '&:hover': onClick ? { bgcolor: 'cockpit.panel2' } : undefined }}
     >
       <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75, width: '100%' }}>
         <Label>{label}</Label>
@@ -106,10 +103,10 @@ export function KpiTile({ label, value, unit, valueColor, deltaText, deltaColor,
         <MiniBars values={series} />
       </Stack>
       {footer || (stats && format && (
-        <Mono sx={{ display: 'flex', justifyContent: 'space-between', gap: 0.75, width: '100%', fontSize: 11, overflow: 'hidden', '& > span:nth-of-type(2)': { display: { xs: 'none', xl: 'inline' } }, '& > span:nth-of-type(3)': { display: { xs: 'none', sm: 'inline' } }, color: 'cockpit.tx3', borderTop: 1, borderStyle: 'dashed', borderColor: 'cockpit.line', pt: 0.5, whiteSpace: 'nowrap', '& b': { color: 'cockpit.tx2', fontWeight: 400 } }}>
-          <span>AVG <b>{format(stats.avg)}</b></span>
-          <span>LO <b>{format(stats.lo)}</b></span>
-          <span>HI <b>{format(stats.hi)}</b></span>
+        <Mono sx={{ display: 'flex', justifyContent: 'space-between', gap: 0.75, width: '100%', fontSize: 11, overflow: 'hidden', '& > span:nth-of-type(2)': { display: { xs: 'none', xl: 'inline' } }, '& > span:nth-of-type(3)': { display: { xs: 'none', sm: 'inline' } }, color: 'cockpit.tx3', pt: 0.25, whiteSpace: 'nowrap', '& b': { color: 'cockpit.tx2', fontWeight: 400 } }}>
+          <span>avg <b>{format(stats.avg)}</b></span>
+          <span>low <b>{format(stats.lo)}</b></span>
+          <span>high <b>{format(stats.hi)}</b></span>
         </Mono>
       ))}
     </Box>

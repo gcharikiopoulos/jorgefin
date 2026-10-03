@@ -3,7 +3,7 @@ import { Alert, Box, Button, Stack, TextField } from '@mui/material';
 import { useDataProvider, useNotify } from 'react-admin';
 import { CategorySelect } from './CategorySelect.jsx';
 import { PanelHeader, PanelTransactions } from './SidePanel.jsx';
-import { Kbd, Label, Mono } from '../dashboard/parts.jsx';
+import { Label, Mono } from '../dashboard/parts.jsx';
 import { normalizeText, signedAmount, suggestPrefix } from '../format.js';
 import { MIN_PREFIX, PrefixField, Segments, useDebounced } from './PrefixField.jsx';
 import { useRefreshAfterWrite } from '../hooks.js';
@@ -67,31 +67,28 @@ export function CategorizePanel({ item, onClose, onSaved }) {
   return (
     <>
       <PanelHeader
-        tag="NEW RULE"
+        tag="New rule"
         title={item.sample_description || item.description_norm}
         subtitle={[
-          plural(Number(item.txn_count), 'txn'),
+          plural(Number(item.txn_count), 'transaction'),
           Number(item.debit_count) && Number(item.credit_count) ? `${item.debit_count} out · ${item.credit_count} in` : '',
           `net ${signedAmount(item.net_amount)} €`,
         ].filter(Boolean).join(' · ')}
         onClose={onClose}
       />
-      <Box component="form" onSubmit={save} sx={{ mx: 1.5, mb: 1.5, p: 1.5, border: 1, borderColor: 'cockpit.line2', borderRadius: '3px', bgcolor: 'cockpit.panel2' }}>
+      <Box component="form" onSubmit={save} sx={{ mx: 1.5, mb: 1.5, p: 2, borderRadius: '12px', bgcolor: 'cockpit.panel2' }}>
         <Stack spacing={1.5}>
-          <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-            <Label sx={{ color: 'cockpit.tx' }}>Categorise</Label>
-            <Kbd>C</Kbd>
-          </Stack>
+          <Box sx={{ fontSize: 15, fontWeight: 600 }}>Categorise</Box>
           <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
-            <Label sx={{ fontSize: 10.5 }}>Match</Label>
-            <Segments label="Match" value={matchType} onChange={setMatchType} options={[['exact', 'EXACT TEXT'], ['prefix', 'STARTS WITH']]} />
+            <Label>Match</Label>
+            <Segments label="Match" value={matchType} onChange={setMatchType} options={[['exact', 'Exact text'], ['prefix', 'Starts with']]} />
           </Stack>
           {matchType === 'prefix'
             ? <PrefixField value={prefix} onChange={setPrefix} description={item.description_norm} />
             : (
               <Box>
-                <Label sx={{ fontSize: 10.5 }}>Pattern</Label>
-                <Mono component="div" sx={{ fontSize: 12, color: 'cockpit.tx', overflowWrap: 'anywhere', mt: 0.25 }}>{item.description_norm}</Mono>
+                <Label>Pattern</Label>
+                <Mono component="div" sx={{ fontSize: 13.5, color: 'cockpit.tx', overflowWrap: 'anywhere', mt: 0.25 }}>{item.description_norm}</Mono>
               </Box>
             )}
           <CategorySelect id="review-category" value={categoryId} onChange={setCategoryId} />
