@@ -9,10 +9,11 @@ import { CategoryTag } from '../components/CategoryTag.jsx';
 import { CategorySelect } from '../components/CategorySelect.jsx';
 import { Label, Mono } from '../dashboard/parts.jsx';
 import { Inspector } from './Inspector.jsx';
-import { amount, categoryTree, formatMonth, formatTime, parseDate, signedAmount, sourceShort, txnName, txnTypeLabel } from '../format.js';
+import { amount, categoryTree, formatDayMonth, formatMonth, formatTime, parseDate, signedAmount, sourceShort, txnName, txnTypeLabel } from '../format.js';
 import { useCategories, useMonths, useRefreshAfterWrite } from '../hooks.js';
 import { monoSx } from '../theme.js';
 import { CONTROL, ROW, TOP_BAR } from '../components/dense.js';
+import { SortTh } from '../components/SortTh.jsx';
 import { num } from '../backend.js';
 
 const INSPECTOR_WIDTH = 340;
@@ -186,7 +187,8 @@ const hideSm = { display: { xs: 'none', md: 'table-cell' } };
 const hideXs = { display: { xs: 'none', sm: 'table-cell' } };
 
 function Ledger() {
-  const { data, isPending, filterValues } = useListContext();
+  const { data, isPending, filterValues, sort, setSort } = useListContext();
+  const byDay = !sort || sort.field === 'txn_date';
   const rows = useMemo(() => data || [], [data]);
   const wide = useMediaQuery((t) => t.breakpoints.up('lg'));
   const md = useMediaQuery((t) => t.breakpoints.up('md'));
@@ -239,9 +241,11 @@ function Ledger() {
     return () => window.removeEventListener('keydown', onKey);
   }, [rows, cursor, inspectId]);
 
-  // Group by day, keeping the server's order (date, time, entry).
+  // Sorted by date: group by day, keeping the server's order (date, time, entry).
+  // Sorted by anything else: one flat list, each row showing its date.
   const groups = [];
-  for (const r of rows) {
+  if (!byDay) groups.push({ date: null, rows });
+  else for (const r of rows) {
     const last = groups[groups.length - 1];
     if (last && last.date === r.txn_date) last.rows.push(r);
     else groups.push({ date: r.txn_date, rows: [r] });
@@ -266,12 +270,12 @@ function Ledger() {
                 <Box component="th" sx={{ ...th, ...hideXs, width: 30 }}>
                   <Checkbox size="small" checked={allSelected} indeterminate={selected.size > 0 && !allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))} slotProps={{ input: { 'aria-label': 'Select all' } }} sx={{ p: 0 }} />
                 </Box>
-                <Box component="th" sx={{ ...th, ...hideXs, width: 72 }}>Time</Box>
-                <Box component="th" sx={th}>Merchant · bank description</Box>
-                <Box component="th" sx={{ ...th, ...hideSm, width: 130 }}>Type</Box>
-                <Box component="th" sx={{ ...th, width: { xs: 120, sm: 190 } }}>Category</Box>
-                <Box component="th" sx={{ ...th, ...hideSm, width: 84 }}>Source</Box>
-                <Box component="th" sx={{ ...th, width: { xs: 104, sm: 112 }, textAlign: 'right' }}>Amount €</Box>
+                <SortTh field="txn_date" sort={sort} onSort={setSort} sx={{ ...th, ...hideXs, width: byDay ? 76 : 120 }}>{byDay ? 'Time' : 'Date'}</SortTh>
+                <SortTh field="merchant_name" first="ASC" sort={sort} onSort={setSort} sx={th}>Merchant · bank description</SortTh>
+                <SortTh field="txn_type" first="ASC" sort={sort} onSort={setSort} sx={{ ...th, ...hideSm, width: 130 }}>Type</SortTh>
+                <SortTh field="category" first="ASC" sort={sort} onSort={setSort} sx={{ ...th, width: { xs: 120, sm: 190 } }}>Category</SortTh>
+                <SortTh field="source" first="ASC" sort={sort} onSort={setSort} sx={{ ...th, ...hideSm, width: 92 }}>Source</SortTh>
+                <SortTh field="amount" sort={sort} onSort={setSort} sx={{ ...th, width: { xs: 104, sm: 120 }, textAlign: 'right' }}>Amount €</SortTh>
               </tr>
             </thead>
             <tbody>
@@ -282,8 +286,8 @@ function Ledger() {
               {groups.map((g) => {
                 const dayTotal = g.rows.reduce((s, r) => s + num(r.signed_amount), 0);
                 return (
-                  <Fragment key={g.date}>
-                    <tr>
+                  <Fragment key={g.date ?? 'all'}>
+                    {g.date && <tr>
                       <Box component="td" colSpan={cols} sx={{ ...td, maxWidth: 'none', height: { xs: 40, md: 36 }, bgcolor: 'cockpit.panel2', borderBottomColor: 'cockpit.line' }}>
                         <Stack direction="row" sx={{ alignItems: 'baseline', gap: 1 }}>
                           <Mono sx={{ fontSize: 13.5, fontWeight: 600, color: 'cockpit.tx' }}>{dayFmt.format(parseDate(g.date))}</Mono>
@@ -292,7 +296,7 @@ function Ledger() {
                           <Mono sx={{ fontSize: 13.5, fontWeight: 600, color: dayTotal > 0 ? 'cockpit.pos' : 'cockpit.tx2' }}>{signedAmount(dayTotal)}</Mono>
                         </Stack>
                       </Box>
-                    </tr>
+                    </tr>}
                     {g.rows.map((r) => {
                       const i = rows.indexOf(r);
                       const { name, detail } = txnName(r);
@@ -306,7 +310,7 @@ function Ledger() {
                           <Box component="td" sx={{ ...td, ...hideXs }} onClick={(e) => e.stopPropagation()}>
                             <Checkbox size="small" checked={selected.has(r.id)} onChange={() => toggle(r.id)} slotProps={{ input: { 'aria-label': `Select ${name}` } }} sx={{ p: 0 }} />
                           </Box>
-                          <Box component="td" sx={{ ...td, ...hideXs, ...monoSx, fontSize: 13.5, color: 'cockpit.tx3' }}>{formatTime(r.txn_at) || '—'}</Box>
+                          <Box component="td" sx={{ ...td, ...hideXs, ...monoSx, fontSize: 13.5, color: 'cockpit.tx3' }}>{byDay ? formatTime(r.txn_at) || '—' : `${formatDayMonth(r.txn_date)}${formatTime(r.txn_at) ? ` ${formatTime(r.txn_at)}` : ''}`}</Box>
                           <Box component="td" sx={td} title={[name, extra].filter(Boolean).join(' · ')}>
                             <Box component="span" sx={{ fontWeight: 600, ...(r.merchant_name ? {} : { fontWeight: 500, color: 'cockpit.tx2' }) }}>{name}</Box>
                             {extra && <Mono sx={{ fontSize: 13, color: 'cockpit.tx3', ml: 1, display: { xs: 'none', sm: 'inline' } }}>{extra}</Mono>}

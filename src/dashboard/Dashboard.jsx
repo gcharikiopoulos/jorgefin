@@ -11,6 +11,7 @@ import { checkAccess, num } from '../backend.js';
 import {
   REST_COLOR, amount, axisAmount, categoryColor, seriesColor, formatDayMonth, formatMonth, formatShortMonth, parseDate, percent, signedAmount, sourceShort, txnName,
 } from '../format.js';
+import { SortTh, sortRows } from '../components/SortTh.jsx';
 import { monoSx } from '../theme.js';
 import { CategoryTag } from '../components/CategoryTag.jsx';
 import { CONTROL, ROW } from '../components/dense.js';
@@ -477,6 +478,7 @@ function CategoryTable({ months, index }) {
   const past = months.slice(index, index + 6).map((m) => m.month); // newest first
   const results = useQueries({ queries: past.map((mm) => ({ queryKey: ['breakdown', mm], queryFn: () => dataProvider.getCategoryBreakdown(mm, 'expense') })) });
   const cur = results[0];
+  const [sort, setSort] = useState({ field: 'total', order: 'DESC' });
   return (
     <QueryState query={cur} height={200} empty="No spending this month.">
       {(rows) => {
@@ -491,6 +493,15 @@ function CategoryTable({ months, index }) {
         });
         if (rest.length) lines.push({ category_id: 'other', label: `Other (${rest.length})`, total: rest.reduce((s, g) => s + g.total, 0), hist: [], color: REST_COLOR });
         const max = Math.max(...lines.map((l) => l.total));
+        // The figures each row shows, for sorting; "Other" always stays last.
+        for (const l of lines) {
+          const prev = l.hist.length > 1 ? l.hist[l.hist.length - 2] : null;
+          const mean = l.hist.length ? avg(l.hist) : null;
+          l.dPrev = prev ? (l.total - prev) / prev : null;
+          l.dAvg = mean ? (l.total - mean) / mean : null;
+        }
+        const other = lines.filter((l) => l.category_id === 'other');
+        const rowsShown = [...sortRows(lines.filter((l) => l.category_id !== 'other'), sort, { trend: (l) => l.dPrev }), ...other];
         const head = { ...monoSx, fontSize: 13, fontWeight: 500, color: 'cockpit.tx3', textAlign: 'left', px: 1.5, height: 36, borderBottom: 1, borderColor: 'cockpit.line', whiteSpace: 'nowrap' };
         const cell = { px: 1.25, height: ROW, borderBottom: 1, borderColor: 'cockpit.line', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 0 };
         return (
@@ -501,22 +512,19 @@ function CategoryTable({ months, index }) {
             <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', ...monoSx, fontSize: 12.5, '& tbody tr:hover td': { bgcolor: 'cockpit.panel2' } }}>
               <thead>
                 <tr>
-                  <Box component="th" sx={{ ...head, width: { xs: 'auto', sm: '26%' } }}>Category</Box>
-                  <Box component="th" sx={{ ...head, display: { xs: 'none', sm: 'table-cell' } }}>Share</Box>
-                  <Box component="th" sx={{ ...head, width: { xs: 76, sm: '14%' }, textAlign: 'right' }}>Amount</Box>
-                  <Box component="th" sx={{ ...head, width: '8%', textAlign: 'right', display: { xs: 'none', sm: 'table-cell' } }}>%</Box>
-                  <Box component="th" sx={{ ...head, width: '11%', display: { xs: 'none', sm: 'table-cell' } }}>6 mo</Box>
-                  <Box component="th" sx={{ ...head, width: { xs: 64, sm: '10%' }, textAlign: 'right' }}>vs prev</Box>
-                  <Box component="th" sx={{ ...head, width: '10%', textAlign: 'right', display: { xs: 'none', sm: 'table-cell' } }}>vs 6M</Box>
+                  <SortTh field="label" first="ASC" sort={sort} onSort={setSort} sx={{ ...head, width: { xs: 'auto', sm: '26%' } }}>Category</SortTh>
+                  <SortTh field="total" sort={sort} onSort={setSort} sx={{ ...head, display: { xs: 'none', sm: 'table-cell' } }}>Share</SortTh>
+                  <SortTh field="total" sort={sort} onSort={setSort} sx={{ ...head, width: { xs: 80, sm: '14%' }, textAlign: 'right' }}>Amount</SortTh>
+                  <SortTh field="total" sort={sort} onSort={setSort} sx={{ ...head, width: '8%', textAlign: 'right', display: { xs: 'none', sm: 'table-cell' } }}>%</SortTh>
+                  <SortTh field="trend" sort={sort} onSort={setSort} sx={{ ...head, width: '11%', display: { xs: 'none', sm: 'table-cell' } }}>6 mo</SortTh>
+                  <SortTh field="dPrev" sort={sort} onSort={setSort} sx={{ ...head, width: { xs: 80, sm: '11%' }, textAlign: 'right' }}>vs prev</SortTh>
+                  <SortTh field="dAvg" sort={sort} onSort={setSort} sx={{ ...head, width: '10%', textAlign: 'right', display: { xs: 'none', sm: 'table-cell' } }}>vs 6M</SortTh>
                 </tr>
               </thead>
               <tbody>
-                {lines.map((l) => {
+                {rowsShown.map((l) => {
                   const unc = l.category_id == null;
-                  const prev = l.hist.length > 1 ? l.hist[l.hist.length - 2] : null;
-                  const dPrev = prev ? (l.total - prev) / prev : null;
-                  const mean = l.hist.length ? avg(l.hist) : null;
-                  const dAvg = mean ? (l.total - mean) / mean : null;
+                  const { dPrev, dAvg } = l;
                   const hMax = Math.max(...l.hist, 1);
                   return (
                     <tr key={l.category_id ?? 'none'}>
@@ -608,6 +616,7 @@ const hideXs = { display: { xs: 'none', md: 'table-cell' } };
 function TopMerchants({ query }) {
   const theme = useTheme();
   const { data: categories = [] } = useCategories();
+  const [sort, setSort] = useState({ field: 'total', order: 'DESC' });
   return (
     <QueryState query={query} height={200} empty="No spending this month." isEmpty={(rows) => !rows.some((r) => num(r.expense_amount) > 0)}>
       {(rows) => {
@@ -621,23 +630,24 @@ function TopMerchants({ query }) {
           t.count += 1;
           totals.set(key, t);
         }
-        const top = [...totals.values()].sort((a, b) => b.total - a.total).slice(0, 8);
+        const top = [...totals.values()].sort((a, b) => b.total - a.total).slice(0, 8).map((t, i) => ({ ...t, rank: i + 1, avg: t.total / t.count }));
         const max = top[0]?.total || 1;
+        const shown = sortRows(top, sort);
         return (
           <Box component="table" sx={tableSx}>
             <thead><tr>
-              <Box component="th" sx={{ ...thSx, width: 40 }}>#</Box>
-              <Box component="th" sx={thSx}>Merchant</Box>
-              <Box component="th" sx={{ ...thSx, width: 44, textAlign: 'right' }}>N</Box>
-              <Box component="th" sx={{ ...thSx, width: 76, textAlign: 'right' }}>Avg</Box>
-              <Box component="th" sx={{ ...thSx, width: 88, textAlign: 'right' }}>Total</Box>
+              <SortTh field="rank" first="ASC" sort={sort} onSort={setSort} sx={{ ...thSx, width: 52 }}>#</SortTh>
+              <SortTh field="name" first="ASC" sort={sort} onSort={setSort} sx={thSx}>Merchant</SortTh>
+              <SortTh field="count" sort={sort} onSort={setSort} sx={{ ...thSx, width: 56, textAlign: 'right' }}>N</SortTh>
+              <SortTh field="avg" sort={sort} onSort={setSort} sx={{ ...thSx, width: 84, textAlign: 'right' }}>Avg</SortTh>
+              <SortTh field="total" sort={sort} onSort={setSort} sx={{ ...thSx, width: 96, textAlign: 'right' }}>Total</SortTh>
             </tr></thead>
             <tbody>
-              {top.map((t, i) => {
+              {shown.map((t) => {
                 const color = categoryColor(t.category_id, categories, theme.palette.mode, t.color);
                 return (
                   <tr key={t.name}>
-                    <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12.5, color: 'cockpit.tx3' }}>{i + 1}</Box>
+                    <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12.5, color: 'cockpit.tx3' }}>{t.rank}</Box>
                     <Box component="td" sx={tdSx} title={t.name}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
                         <Box sx={{ width: 6, height: 6, borderRadius: '1px', flex: 'none', bgcolor: color }} />
@@ -647,7 +657,7 @@ function TopMerchants({ query }) {
                       <Box sx={{ height: 2, mt: '2px', bgcolor: 'cockpit.line' }}><Box sx={{ height: 2, width: `${(t.total / max) * 100}%`, bgcolor: color }} /></Box>
                     </Box>
                     <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12, textAlign: 'right', color: 'cockpit.tx3' }}>{t.count}</Box>
-                    <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12, textAlign: 'right', color: 'cockpit.tx2' }}>{amount(t.total / t.count)}</Box>
+                    <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12, textAlign: 'right', color: 'cockpit.tx2' }}>{amount(t.avg)}</Box>
                     <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12.5, textAlign: 'right', fontWeight: 600 }}>{amount(t.total)}</Box>
                   </tr>
                 );

@@ -10,6 +10,7 @@ import { tableSx, tdSx, thSx } from './dense.js';
 import { formatDayMonth, formatTime, signedAmount, txnName } from '../format.js';
 import { monoSx } from '../theme.js';
 import { TOP_BAR } from './dense.js';
+import { SortTh } from './SortTh.jsx';
 import { num } from '../backend.js';
 
 const PANEL_WIDTH = 380;
@@ -66,10 +67,11 @@ export function PanelTransactions({ filter, showCategory = true, note, title = '
   const dataProvider = useDataProvider();
   const [limit, setLimit] = useState(50);
   const [selected, setSelected] = useState(null);
+  const [sort, setSort] = useState({ field: 'txn_date', order: 'DESC' });
   const key = JSON.stringify(filter);
   const query = useQuery({
-    queryKey: ['panel-transactions', key, limit],
-    queryFn: () => dataProvider.getList('transactions', { pagination: { page: 1, perPage: limit }, sort: { field: 'txn_date', order: 'DESC' }, filter }),
+    queryKey: ['panel-transactions', key, limit, sort.field, sort.order],
+    queryFn: () => dataProvider.getList('transactions', { pagination: { page: 1, perPage: limit }, sort, filter }),
     placeholderData: keepPreviousData,
   });
 
@@ -95,9 +97,9 @@ export function PanelTransactions({ filter, showCategory = true, note, title = '
       </Stack>
       <Box component="table" sx={tableSx}>
         <thead><tr>
-          <Box component="th" sx={{ ...thSx, width: 110, pl: 1.5 }}>Date</Box>
-          <Box component="th" sx={thSx}>Merchant</Box>
-          <Box component="th" sx={{ ...thSx, width: 86, textAlign: 'right', pr: 1.5 }}>€</Box>
+          <SortTh field="txn_date" sort={sort} onSort={setSort} sx={{ ...thSx, width: 110 }}>Date</SortTh>
+          <SortTh field="merchant_name" first="ASC" sort={sort} onSort={setSort} sx={thSx}>Merchant</SortTh>
+          <SortTh field="amount" sort={sort} onSort={setSort} sx={{ ...thSx, width: 96, textAlign: 'right' }}>€</SortTh>
         </tr></thead>
         <tbody>
           {rows.map((r) => {
