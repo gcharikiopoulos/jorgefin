@@ -44,7 +44,7 @@ function process_({ dryRun }) {
       ? new Date(new Date(config.lastRunAt).getTime() - OVERLAP_HOURS * 3600e3)
       : new Date(startedAt.getTime() - FIRST_RUN_DAYS * 86400e3);
     const query = [
-      `from:(${config.senders.join(' OR ')})`,
+      `from:(${BANK_DOMAINS.join(' OR ')})`,
       `after:${Math.floor(since.getTime() / 1000)}`,
     ].join(' ');
 
@@ -56,15 +56,16 @@ function process_({ dryRun }) {
     for (const thread of threads) {
       for (const message of thread.getMessages()) {
         if (message.getDate() < since) continue;
-        if (!config.senders.some((s) => message.getFrom().toLowerCase().includes(s.toLowerCase()))) continue;
+        if (!isBankSender(message.getFrom())) continue; // Gmail's from: also matches display names
         messages += 1;
         const email = { id: message.getId(), from: message.getFrom(), subject: message.getSubject(), body: message.getPlainBody(), html: message.getBody(), date: message.getDate() };
         const result = parseEmail(email);
         if (result) rows.push(...result.transactions);
         else {
           unrecognised.push(`${email.date.toISOString()} ${email.subject}`);
-          // An alert layout the parsers miss is a parser bug: show its text in a dry run.
-          if (dryRun && /ebanking@|piraeusbank\.gr|nbg\.gr/i.test(email.from)) Logger.log('Unparsed alert text: %s', emailText_(email).slice(0, 600));
+          // Banks also send newsletters. One that mentions an amount may be an alert layout
+          // the parsers miss (a parser bug): show its text in a dry run.
+          if (dryRun && /EUR|€|ΠΟΣΟ/i.test(emailText_(email))) Logger.log('Unparsed alert text: %s', emailText_(email).slice(0, 600));
         }
       }
     }

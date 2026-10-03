@@ -113,3 +113,21 @@ test('NBG: debit card purchase names the merchant', () => {
 test('NBG: other notices are not recognised', () => {
   assert.equal(parseEmail(f.nbg.unknown), null);
 });
+
+test('senders: any address or subdomain of a bank domain counts, look-alikes do not', () => {
+  const { isBankSender } = require('../src/parsers.js');
+  assert.equal(isBankSender('Alpha Bank <alerts@alpha.gr>'), true);
+  assert.equal(isBankSender('new-mailbox@alpha.gr'), true);
+  assert.equal(isBankSender('NBG <noreply@mail.nbg.gr>'), true);
+  assert.equal(isBankSender('IBankV2Email@PiraeusBank.gr'), true);
+  assert.equal(isBankSender('someone@alpha.gr.example.com'), false);
+  assert.equal(isBankSender('someone@notalpha.gr'), false);
+  assert.equal(isBankSender('"alerts@alpha.gr" <someone@example.com>'), false);
+});
+
+test('a bank alert from a new address at the same bank still parses', () => {
+  const email = { ...f.purchase, from: 'Alpha Bank <notifications@alpha.gr>' };
+  assert.equal(parseEmail(email).transactions.length, 1);
+  const card = { ...f.cardPurchase, from: 'other@alpha.gr' };
+  assert.equal(parseEmail(card).type, 'card_alert');
+});

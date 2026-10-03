@@ -6,7 +6,9 @@ Reads Alpha Bank alert emails from Gmail, extracts each transaction and sends it
 Gmail (alert emails) --Apps Script, hourly--> fin_ingest_email_transactions(jsonb) --> raw_email_transactions --> transactions
 ```
 
-These alerts are understood:
+Mail is picked by the sender's domain (`BANK_DOMAINS` in `src/parsers.js`: `alpha.gr`, `piraeusbank.gr`, `nbg.gr`, any address or subdomain), wherever it is filed, so a bank moving its alerts to another mailbox keeps working. The parsers skip anything that is not a transaction, such as newsletters. A new bank needs a parser and its domain added there.
+
+These alerts are understood (the addresses are the ones in use today):
 
 | Sender | What it has | Becomes |
 | --- | --- | --- |
@@ -67,7 +69,6 @@ A debit-card purchase triggers both alerts within seconds, and the same payment 
    | Property | Value |
    | --- | --- |
    | `NEON_PASSWORD` | the `etl_ingest` password, exactly as you set it (special characters are fine; the script encodes it) |
-   | `ALERT_SENDERS` | `alerts@alpha.gr,ebanking@alpha.gr,IBankV2Email@piraeusbank.gr,Nbg.donotreply@nbg.gr` (all mail from these senders is read, wherever it is filed; the parsers skip anything that is not a transaction) |
 
 4. **Check.** Run `testConnection()`; the log should say `Connected as etl_ingest`. Then run `dryRun()` and compare the logged transactions with the emails. It writes nothing. The first run looks back 400 days (`FIRST_RUN_DAYS` in `src/config.js`); later runs continue from the last one.
 
