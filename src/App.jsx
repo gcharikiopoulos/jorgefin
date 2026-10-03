@@ -7,7 +7,8 @@ import { lightTheme, darkTheme } from './theme.js';
 import { Layout } from './Layout.jsx';
 import { LoginPage } from './LoginPage.jsx';
 import { NotAuthorised } from './NotAuthorised.jsx';
-import { Dashboard } from './dashboard/Dashboard.jsx';
+import { Reports } from './dashboard/Dashboard.jsx';
+import { Overview } from './dashboard/Overview.jsx';
 import { TransactionList } from './transactions/TransactionList.jsx';
 import { ReviewList } from './review/ReviewList.jsx';
 import { CategoryList } from './categories/CategoryList.jsx';
@@ -29,10 +30,10 @@ export function App() {
       dataProvider={dataProvider}
       authProvider={authProvider}
       queryClient={queryClient}
-      dashboard={Dashboard}
+      dashboard={Overview}
       layout={Layout}
       loginPage={LoginPage}
-      defaultTheme="dark"
+      defaultTheme="light"
       lightTheme={lightTheme}
       darkTheme={darkTheme}
       requireAuth
@@ -41,6 +42,9 @@ export function App() {
       <Resource name="transactions" list={TransactionList} options={{ label: 'Transactions' }} />
       <Resource name="review" list={ReviewList} options={{ label: 'Review' }} />
       <Resource name="categories" list={CategoryList} options={{ label: 'Categories' }} recordRepresentation="name" />
+      <CustomRoutes>
+        <Route path="/reports" element={<Reports />} />
+      </CustomRoutes>
       <CustomRoutes noLayout>
         <Route path="/not-authorised" element={<NotAuthorised />} />
       </CustomRoutes>

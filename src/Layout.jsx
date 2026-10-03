@@ -1,5 +1,5 @@
-// App shell: a 38px top bar with section tabs (bottom tabs on phones), no sidebar,
-// and a status line along the bottom. "g" then o / t / r / c switches section.
+// App shell: a top bar with section tabs (bottom tabs on phones), no sidebar, and a
+// status line along the bottom while offline. "g" then o / t / r / c / p switches section.
 
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
@@ -8,6 +8,7 @@ import DashboardIcon from '@mui/icons-material/SpaceDashboardOutlined';
 import ReceiptIcon from '@mui/icons-material/ReceiptLongOutlined';
 import RuleIcon from '@mui/icons-material/RuleOutlined';
 import CategoryIcon from '@mui/icons-material/CategoryOutlined';
+import InsightsIcon from '@mui/icons-material/InsightsOutlined';
 import { Layout as RaLayout, LoadingIndicator, TitlePortal, ToggleThemeButton, UserMenu, Logout } from 'react-admin';
 import { isMock, num } from './backend.js';
 import { useMonths } from './hooks.js';
@@ -21,6 +22,7 @@ const SECTIONS = [
   { to: '/transactions', label: 'Transactions', key: 't' },
   { to: '/review', label: 'Review', key: 'r', badge: 'review' },
   { to: '/categories', label: 'Categories', key: 'c' },
+  { to: '/reports', label: 'Reports', key: 'p' },
 ];
 
 function useReviewCount() {
@@ -106,12 +108,12 @@ function TopBar() {
   );
 }
 
-const TAB_ICONS = { '/': DashboardIcon, '/transactions': ReceiptIcon, '/review': RuleIcon, '/categories': CategoryIcon };
+const TAB_ICONS = { '/': DashboardIcon, '/transactions': ReceiptIcon, '/review': RuleIcon, '/categories': CategoryIcon, '/reports': InsightsIcon };
 
 function BottomTabs() {
   const reviewCount = useReviewCount();
   return (
-    <Box component="nav" aria-label="Sections" sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1100, height: 'calc(60px + env(safe-area-inset-bottom))', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', bgcolor: 'cockpit.panel', borderTop: 1, borderColor: 'cockpit.line', pb: 'env(safe-area-inset-bottom)' }}>
+    <Box component="nav" aria-label="Sections" sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1100, height: 'calc(60px + env(safe-area-inset-bottom))', display: 'grid', gridTemplateColumns: `repeat(${SECTIONS.length}, minmax(0, 1fr))`, bgcolor: 'cockpit.panel', borderTop: 1, borderColor: 'cockpit.line', pb: 'env(safe-area-inset-bottom)' }}>
       {SECTIONS.map((s) => {
         const Icon = TAB_ICONS[s.to];
         return (
@@ -132,13 +134,14 @@ function BottomTabs() {
 function StatusBar() {
   const online = useOnline();
   const { pathname } = useLocation();
+  if (online) return null;
   return (
     <Mono component="footer" sx={{ height: 28, display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1.75, px: 1.5, mx: -0.75, mt: 'auto', borderTop: 1, borderColor: 'cockpit.line', bgcolor: 'cockpit.panel', fontSize: 11, color: 'cockpit.tx3', whiteSpace: 'nowrap', overflow: 'hidden' }}>
       <span><Box component="span" sx={{ color: online ? 'cockpit.pos' : 'cockpit.warn' }}>●</Box> {online ? 'ONLINE' : 'OFFLINE · CACHED'}</span>
       {isMock && <span>DEMO DATA</span>}
       <Box sx={{ flexGrow: 1 }} />
-      {pathname === '/' && <span><Kbd>1</Kbd>–<Kbd>9</Kbd> panel</span>}
-      <span><Kbd>G</Kbd> <Kbd>O</Kbd>/<Kbd>T</Kbd>/<Kbd>R</Kbd>/<Kbd>C</Kbd> section</span>
+      {pathname === '/reports' && <span><Kbd>1</Kbd>–<Kbd>8</Kbd> panel</span>}
+      <span><Kbd>G</Kbd> <Kbd>O</Kbd>/<Kbd>T</Kbd>/<Kbd>R</Kbd>/<Kbd>C</Kbd>/<Kbd>P</Kbd> section</span>
       <span>EUR · el-GR</span>
       <span>v{version}</span>
     </Mono>

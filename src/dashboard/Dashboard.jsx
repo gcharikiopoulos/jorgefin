@@ -5,29 +5,26 @@ import { useDataProvider, Title } from 'react-admin';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import { GridLines, KpiTile, Label, Light, Mono, Panel, QueryState, delta, niceTicks, signedPercent, tone } from './parts.jsx';
+import { GridLines, KpiTile, Label, Mono, Panel, QueryState, delta, niceTicks, signedPercent, tone } from './parts.jsx';
 import { useCategories, useMonths } from '../hooks.js';
 import { checkAccess, num } from '../backend.js';
 import {
-  REST_COLOR, amount, axisAmount, categoryColor, seriesColor, formatDayMonth, formatMonth, formatShortMonth, formatTime, parseDate, percent, signedAmount, sourceShort, txnName, txnTypeLabel,
+  REST_COLOR, amount, axisAmount, categoryColor, seriesColor, formatDayMonth, formatMonth, formatShortMonth, parseDate, percent, signedAmount, sourceShort, txnName,
 } from '../format.js';
 import { monoSx } from '../theme.js';
 import { CategoryTag } from '../components/CategoryTag.jsx';
 import { CONTROL, ROW } from '../components/dense.js';
 
 const MAX_CATEGORIES = 10;
-const LARGE_TXN = 500;
-const SPIKE = 1; // +100% on the previous month
-const SPIKE_MIN = 20; // ignore spikes in categories under 20 € last month
-const transactionsLink = (filter) => `/transactions?filter=${encodeURIComponent(JSON.stringify(filter))}`;
+export const transactionsLink = (filter) => `/transactions?filter=${encodeURIComponent(JSON.stringify(filter))}`;
 const daysIn = (month) => { const d = parseDate(month); return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); };
-const thisMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; };
-const avg = (a) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0);
+export const thisMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; };
+export const avg = (a) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0);
 const SOURCE_ORDER = ['card_alert', 'account_alert', 'statement_csv', 'manual', 'mock'];
 
 // ---------- shared queries ----------
 
-function useBreakdown(month) {
+export function useBreakdown(month) {
   const dataProvider = useDataProvider();
   return useQuery({ queryKey: ['breakdown', month], queryFn: () => dataProvider.getCategoryBreakdown(month, 'expense'), enabled: !!month });
 }
@@ -35,11 +32,11 @@ function useDaily(month) {
   const dataProvider = useDataProvider();
   return useQuery({ queryKey: ['daily', month], queryFn: () => dataProvider.getDailySpend(month), enabled: !!month });
 }
-function useBalance() {
+export function useBalance() {
   const dataProvider = useDataProvider();
   return useQuery({ queryKey: ['balance-history'], queryFn: () => dataProvider.getBalanceHistory() });
 }
-function useMonthTransactions(month) {
+export function useMonthTransactions(month) {
   const dataProvider = useDataProvider();
   return useQuery({
     queryKey: ['month-transactions', month],
@@ -49,7 +46,7 @@ function useMonthTransactions(month) {
 }
 
 // Subcategories roll up into their parent, which carries the colour: Map(topId -> { category_id, label, total, rowColor }).
-function rollup(rows = [], categories) {
+export function rollup(rows = [], categories) {
   const groups = new Map();
   for (const r of rows) {
     const cat = categories.find((c) => c.id === r.category_id);
@@ -80,73 +77,6 @@ function MonthPicker({ months, index, onChange }) {
       </TextField>
       <IconButton aria-label="Next month" onClick={() => onChange(index - 1)} disabled={index <= 0} sx={{ borderRadius: 0, p: { xs: '10px', md: '5px' } }}><ChevronRightIcon sx={{ fontSize: 20 }} /></IconButton>
     </Stack>
-  );
-}
-
-// ---------- warning lights ----------
-
-function Annunciator({ months, index, txQuery }) {
-  const navigate = useNavigate();
-  const { data: categories = [] } = useCategories();
-  const m = months[index];
-  const prev = months[index + 1];
-  const month = m.month;
-  const cur = useBreakdown(month);
-  const before = useBreakdown(prev?.month);
-  const balance = useBalance();
-  const [online, setOnline] = useState(navigator.onLine);
-  useEffect(() => {
-    const update = () => setOnline(navigator.onLine);
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
-    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update); };
-  }, []);
-
-  const rows = txQuery.data || [];
-  const uncat = rows.filter((r) => r.category_id == null);
-  const uncatTotal = uncat.reduce((s, r) => s + Math.abs(num(r.signed_amount)), 0);
-  const descriptions = new Set(uncat.map((r) => r.description)).size;
-  const uncatCount = num(m.uncategorized_count);
-
-  // Biggest rise in a category on last month.
-  let spike = null;
-  if (cur.data && before.data) {
-    const now = rollup(cur.data, categories), was = rollup(before.data, categories);
-    for (const [id, g] of now) {
-      const p = was.get(id);
-      if (id == null || !p || p.total < SPIKE_MIN) continue;
-      const d = (g.total - p.total) / p.total;
-      if (d > SPIKE && (!spike || d > spike.d)) spike = { label: g.label, d };
-    }
-  }
-  const spend = num(m.expenses), prevSpend = prev ? num(prev.expenses) : null;
-  const spendDelta = delta(spend, prevSpend);
-  const income = num(m.income);
-  const savings = m.savings_rate != null ? num(m.savings_rate) : income ? num(m.net) / income : null;
-  const large = rows.filter((r) => num(r.expense_amount) > LARGE_TXN);
-  const history = (balance.data || []).filter((r) => r.month <= month).slice(-12);
-  const atHigh = history.length > 1 && history[history.length - 1].month === month && history[history.length - 1].balance >= Math.max(...history.map((r) => r.balance));
-  const latest = rows[0];
-
-  const lights = [
-    { label: 'UNCATEGORISED', level: uncatCount ? 'warn' : 'ok', detail: uncatCount ? `${uncatCount} txn · ${amount(uncatTotal)} €` : 'all categorised', onClick: uncatCount ? () => navigate('/review') : undefined },
-    { label: 'UNMATCHED DESCR.', level: descriptions ? 'warn' : 'off', detail: descriptions ? `${descriptions} with no rule` : 'none', onClick: descriptions ? () => navigate('/review') : undefined },
-    { label: 'CATEGORY SPIKE', level: spike ? 'warn' : 'off', detail: spike ? `${spike.label} ${signedPercent(spike.d)} m/m` : 'none over +100%' },
-    {
-      label: spendDelta != null && spendDelta > 0 ? 'SPEND > PREV' : 'SPEND < PREV',
-      level: spendDelta == null ? 'off' : spendDelta > 0.1 ? 'warn' : spendDelta <= 0 ? 'ok' : 'info',
-      detail: spendDelta == null ? 'no previous month' : `${signedPercent(spendDelta)} · ${amount(Math.abs(spend - prevSpend))} €`,
-    },
-    { label: 'SAVINGS ≥ 20%', level: savings == null ? 'off' : savings >= 0.2 ? 'ok' : 'off', detail: savings == null ? 'no income' : `${percent(savings, 1)} this month` },
-    { label: 'BALANCE 12M HIGH', level: atHigh ? 'info' : 'off', detail: atHigh ? `${amount(history[history.length - 1].balance)} €` : 'not this month' },
-    { label: `LARGE TXN > ${LARGE_TXN}`, level: large.length ? 'info' : 'off', detail: large.length ? `${large.length} · ${txnName(large[0]).name}` : 'none' },
-    { label: 'LATEST DATA', level: 'off', detail: latest ? [formatDayMonth(latest.txn_date), formatTime(latest.txn_at)].filter(Boolean).join(' ') : '—' },
-    { label: 'OFFLINE', level: online ? 'off' : 'warn', detail: online ? 'connected' : 'showing cached data' },
-  ];
-  return (
-    <Box component="section" aria-label="Alerts" sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(5, minmax(0, 1fr))', xl: 'repeat(9, minmax(0, 1fr))' }, gap: '6px' }}>
-      {lights.map((l) => <Light key={l.label} {...l} />)}
-    </Box>
   );
 }
 
@@ -216,7 +146,7 @@ function KpiRow({ months, index, txQuery }) {
 const svgBox = { position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' };
 
 // Two lines: day-to-day cash, and savings + investments (investments at cost).
-function BalanceChart({ month }) {
+export function BalanceChart({ month, legend = true }) {
   const c = useTheme().palette.cockpit;
   const query = useBalance();
   return (
@@ -254,10 +184,12 @@ function BalanceChart({ month }) {
                 <Mono sx={{ position: 'absolute', left: `${X(i) / 10}%`, bottom: -18, transform: 'translateX(-50%)', fontSize: 10.5, color: i === w.length - 1 ? 'cockpit.tx' : 'cockpit.tx3', whiteSpace: 'nowrap' }}>{formatShortMonth(r.month)}</Mono>
               </Box>
             ))}
+            {legend && (
             <Mono component="div" sx={{ position: 'absolute', left: 4, top: 0, display: 'flex', flexDirection: 'column', gap: '1px', fontSize: 11, bgcolor: 'cockpit.panel', px: 0.5, py: '2px', border: 1, borderColor: 'cockpit.line', '& i': { display: 'inline-block', width: 10, height: 2, verticalAlign: 'middle', mr: 0.5 } }}>
               {series.map((s) => <span key={s.key}><i style={{ background: s.color }} />{s.label} <b>{amount(last[s.key])}</b></span>)}
               <Box component="span" sx={{ color: 'cockpit.tx2' }}>TOTAL {amount(last.balance)}</Box>
             </Mono>
+            )}
           </Box>
         );
       }}
@@ -724,51 +656,7 @@ function TopMerchants({ query }) {
   );
 }
 
-function RecentTransactions({ month, query }) {
-  const navigate = useNavigate();
-  return (
-    <QueryState query={query} height={200} empty="No transactions this month.">
-      {(rows) => (
-        <Box component="table" sx={tableSx}>
-          <thead><tr>
-            <Box component="th" sx={{ ...thSx, width: 58 }}>Date</Box>
-            <Box component="th" sx={{ ...thSx, width: 58, display: { xs: 'none', sm: 'table-cell' } }}>Time</Box>
-            <Box component="th" sx={{ ...thSx, width: { xs: 'auto', md: '20%' } }}>Merchant</Box>
-            <Box component="th" sx={{ ...thSx, ...hideXs }}>Bank description</Box>
-            <Box component="th" sx={{ ...thSx, ...hideXs, width: 100 }}>Type</Box>
-            <Box component="th" sx={{ ...thSx, width: { xs: 96, sm: 130 } }}>Category</Box>
-            <Box component="th" sx={{ ...thSx, ...hideXs, width: 48 }}>Src</Box>
-            <Box component="th" sx={{ ...thSx, width: 92, textAlign: 'right' }}>Amount €</Box>
-          </tr></thead>
-          <tbody>
-            {rows.slice(0, 12).map((t) => {
-              const { name, detail } = txnName(t);
-              const credit = t.direction === 'credit';
-              return (
-                <Box component="tr" key={t.id} onClick={() => navigate(transactionsLink({ month, q: t.merchant_name || t.description || '' }))} sx={{ cursor: 'pointer' }}>
-                  <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12.5, color: 'cockpit.tx2' }}>{formatDayMonth(t.txn_date)}</Box>
-                  <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12.5, color: 'cockpit.tx3', display: { xs: 'none', sm: 'table-cell' } }}>{formatTime(t.txn_at) || '—'}</Box>
-                  <Box component="td" sx={{ ...tdSx, fontWeight: 600, ...(t.merchant_name ? {} : { ...monoSx, fontSize: 12.5, color: 'cockpit.tx2' }) }} title={name}>{name}</Box>
-                  <Box component="td" sx={{ ...tdSx, ...hideXs, ...monoSx, fontSize: 11.5, color: 'cockpit.tx3' }} title={t.description}>{detail || t.description}</Box>
-                  <Box component="td" sx={{ ...tdSx, ...hideXs, fontSize: 12.5, color: 'cockpit.tx2' }}>{txnTypeLabel(t.txn_type)}</Box>
-                  <Box component="td" sx={tdSx}><CategoryTag categoryId={t.category_id} name={t.category} color={t.color} /></Box>
-                  <Box component="td" sx={{ ...tdSx, ...hideXs, ...monoSx, fontSize: 11, color: 'cockpit.tx3' }}>{sourceShort(t.source)}</Box>
-                  <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 13, fontWeight: 600, textAlign: 'right', color: credit ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(t.signed_amount)}</Box>
-                </Box>
-              );
-            })}
-          </tbody>
-        </Box>
-      )}
-    </QueryState>
-  );
-}
-
-// ---------- page ----------
-
-// No months at all: either an empty database or an account not on the allow-list
-// (RLS returns no rows). Ask the database which one it is.
-function EmptyOrDenied() {
+export function EmptyOrDenied() {
   const query = useQuery({ queryKey: ['access-check'], queryFn: checkAccess, staleTime: 0 });
   if (query.isPending) return <Skeleton variant="rectangular" height={200} sx={{ mt: 1 }} />;
   if (query.data === 'denied') return <Navigate to="/not-authorised" replace />;
@@ -792,13 +680,13 @@ function usePanelKeys() {
   }, []);
 }
 
-export function Dashboard() {
+// Every chart in one place, for one month: the Overview shows the essentials.
+export function Reports() {
   const monthsQuery = useMonths();
   const [index, setIndex] = useState(0); // 0 = latest month with data, not the calendar month
   const months = monthsQuery.data || [];
   const month = months[index]?.month;
   const txQuery = useMonthTransactions(month);
-  const navigate = useNavigate();
   const dailyQuery = useDaily(month);
   const theme = useTheme();
   usePanelKeys();
@@ -831,15 +719,14 @@ export function Dashboard() {
   const days = daysIn(month);
   return (
     <Box sx={{ pb: 2, pt: 1.25, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      <Title title="Overview" />
+      <Title title="Reports" />
       <Stack direction="row" sx={{ alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-        <Typography component="h1" sx={{ fontWeight: 700, fontSize: 14.5 }}>Overview</Typography>
+        <Typography component="h1" sx={{ fontWeight: 700, fontSize: 14.5 }}>Reports</Typography>
         <Label sx={{ textTransform: 'none', letterSpacing: '0.02em' }}>{formatMonth(month)} · {num(m.txn_count)} transactions</Label>
         <Box sx={{ flexGrow: 1 }} />
         <MonthPicker months={months} index={index} onChange={setIndex} />
       </Stack>
 
-      <Annunciator months={months} index={index} txQuery={txQuery} />
       <KpiRow months={months} index={index} txQuery={txQuery} />
 
       <Panel id="panel-1" num={1} title="Year to date" meta="running income and expenses"
@@ -878,10 +765,6 @@ export function Dashboard() {
         <Panel id="panel-8" num={8} title="Top merchants" meta="by spend" sx={span(12, 5)}><TopMerchants query={txQuery} /></Panel>
       </Box>
 
-      <Panel id="panel-9" num={9} title="Recent transactions" meta={txQuery.data ? `${Math.min(12, txQuery.data.length)} of ${txQuery.data.length}` : null}
-        right={<Button onClick={() => navigate(transactionsLink({ month }))} sx={{ ...monoSx, fontSize: 11.5, minHeight: { xs: 40, md: 28 }, py: 0, letterSpacing: '0.06em' }}>ALL TRANSACTIONS ▸</Button>}>
-        <RecentTransactions month={month} query={txQuery} />
-      </Panel>
     </Box>
   );
 }
