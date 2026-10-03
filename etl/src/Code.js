@@ -63,8 +63,8 @@ function process_({ dryRun }) {
         if (result) rows.push(...result.transactions);
         else {
           unrecognised.push(`${email.date.toISOString()} ${email.subject}`);
-          // A card alert that fails to parse is a parser bug: show its text in a dry run.
-          if (dryRun && /ebanking@/i.test(email.from)) Logger.log('Unparsed card alert text: %s', emailText_(email).slice(0, 600));
+          // An alert layout the parsers miss is a parser bug: show its text in a dry run.
+          if (dryRun && /ebanking@|piraeusbank\.gr|nbg\.gr/i.test(email.from)) Logger.log('Unparsed alert text: %s', emailText_(email).slice(0, 600));
         }
       }
     }

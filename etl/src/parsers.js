@@ -84,6 +84,7 @@ function htmlToText_(html) {
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&euro;/gi, '€')
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
     .replace(/\s+/g, ' ')
     .trim();
@@ -164,13 +165,141 @@ function parseCardAlert(email) {
   return txn.txn_date && txn.amount && merchant ? [txn] : null;
 }
 
+// ---- Piraeus Bank -----------------------------------------------------------------
+// Balance-change alert from IBankV2Email@piraeusbank.gr ("Υπηρεσία Piraeus Alerts"),
+// a table of labelled fields:
+//   Λογαριασμός: 1234-***-567 | Ποσό Συναλλαγής: -450 EUR (ΧΡ) | Τύπος Συναλλαγής: <TYPE>
+//   Ημερομηνία Εκτέλεσης: DD/MM/YY HH:MM | Ημερομηνία Αξίας: DD/MM/YYYY
+//   Λογιστικό Υπόλοιπο: 1234.56 EUR | Διαθέσιμο Υπόλοιπο: … | Αιτιολογία 1: … | Αιτιολογία 2: …
+// (ΧΡ) is a debit, (ΠΙ) a credit. The two "Αιτιολογία" lines carry the merchant, the
+// payer or the payee and a note; card numbers, account numbers and references in
+// them are dropped from the description.
+const PIRAEUS_LABELS = ['ΛΟΓΑΡΙΑΣΜΟΣ', 'ΠΟΣΟ ΣΥΝΑΛΛΑΓΗΣ', 'ΤΥΠΟΣ ΣΥΝΑΛΛΑΓΗΣ', 'ΗΜΕΡΟΜΗΝΙΑ ΕΚΤΕΛΕΣΗΣ', 'ΗΜΕΡΟΜΗΝΙΑ ΑΞΙΑΣ',
+  'ΛΟΓΙΣΤΙΚΟ ΥΠΟΛΟΙΠΟ', 'ΔΙΑΘΕΣΙΜΟ ΥΠΟΛΟΙΠΟ', 'ΑΙΤΙΟΛΟΓΙΑ 1', 'ΑΙΤΙΟΛΟΓΙΑ 2'];
+const PIRAEUS_END = /\S+@\S+|EMAIL ΕΠΙΚΟΙΝΩΝΙΑΣ|COPYRIGHT/;
+
+// Text of each "LABEL:" field, up to the next known label (or the footer).
+function labelledFields_(text, labels, end) {
+  const found = [];
+  for (const label of labels) {
+    const i = text.indexOf(label + ':');
+    if (i !== -1) found.push({ label, start: i, from: i + label.length + 1 });
+  }
+  found.sort((a, b) => a.start - b.start);
+  const out = {};
+  found.forEach((f, k) => {
+    let value = text.slice(f.from, k + 1 < found.length ? found[k + 1].start : undefined);
+    const stop = value.search(end);
+    if (stop !== -1) value = value.slice(0, stop);
+    out[f.label] = value.trim();
+  });
+  return out;
+}
+
+const PIRAEUS_TXN_TYPES = [
+  [/ΕΠΙΣΤΡΟΦΗ|ΑΚΥΡΩΣΗ/, 'card_refund'],
+  [/ΑΓΟΡΑ/, 'card_purchase'],
+  [/ATM|ΑΤΜ|ΑΝΑΛΗΨΗ/, 'atm_withdrawal'],
+  [/ΠΡΟΜΗΘΕΙΑ|ΕΞΟΔΑ|ΣΥΝΔΡΟΜΗ/, 'fee'],
+  [/ΠΛΗΡΩΜΗ|ΠΑΓΙΑ/, 'payment'],
+  [/ΜΕΤΑΦΟΡΑ|ΕΜΒΑΣΜΑ|ΕΝΤΟΛΗ/, 'transfer'],
+];
+
+// A reason line that is only a reference: card or account numbers, codes, amounts.
+const isReference_ = (s) => !s || /X{4}/.test(s) || /\d{8,}/.test(s.replace(/\s/g, '')) || /^[\d\s.,/-]+$/.test(s) || /^\d+[.,]\d{2}\s*EUR/.test(s);
+
+function parsePiraeusAlert(email) {
+  if (!/piraeusbank\.gr/i.test(email.from || '')) return null;
+  const text = emailText_(email);
+  if (!text.includes('ΜΕΤΑΒΟΛΗ ΣΤΟ ΥΠΟΛΟΙΠΟ')) return null;
+  const f = labelledFields_(text, PIRAEUS_LABELS, PIRAEUS_END);
+  const amount = (f['ΠΟΣΟ ΣΥΝΑΛΛΑΓΗΣ'] || '').match(/(-?)\s*([\d.,]+)\s*([A-Z]{3})?\s*\((ΧΡ|ΠΙ)\)/);
+  const when = (f['ΗΜΕΡΟΜΗΝΙΑ ΕΚΤΕΛΕΣΗΣ'] || '').match(/(\d{1,2}\/\d{1,2}\/\d{2,4})\s*(\d{1,2}:\d{2})?/);
+  const type = (f['ΤΥΠΟΣ ΣΥΝΑΛΛΑΓΗΣ'] || '').trim();
+  if (!amount || !when || !type || !f['ΛΟΓΑΡΙΑΣΜΟΣ']) return null;
+  const reasons = [f['ΑΙΤΙΟΛΟΓΙΑ 1'], f['ΑΙΤΙΟΛΟΓΙΑ 2']].map((s) => (s || '').trim()).filter((s) => !isReference_(s));
+  const found = PIRAEUS_TXN_TYPES.find(([re]) => re.test(type));
+  const txnType = found ? found[1] : 'other';
+  // Card payments read best as the merchant alone; everything else keeps its type first.
+  const description = (txnType === 'card_purchase' && reasons.length ? reasons[0] : [type, ...reasons].join(' ')).replace(/\s+/g, ' ').trim();
+  const balance = (f['ΛΟΓΙΣΤΙΚΟ ΥΠΟΛΟΙΠΟ'] || '').match(/(-?)\s*([\d.,]+)/);
+  const txn = {
+    account_mask: f['ΛΟΓΑΡΙΑΣΜΟΣ'].split(' ')[0],
+    txn_date: parseDate(when[1]),
+    txn_time: parseTime(when[2]),
+    amount: parseAmount(amount[2]),
+    currency: amount[3] || 'EUR',
+    direction: amount[4] === 'ΧΡ' ? 'debit' : 'credit',
+    txn_type: txnType,
+    description,
+    balance: balance && parseAmount(balance[2]) ? (balance[1] ? '-' : '') + parseAmount(balance[2]) : undefined,
+  };
+  return txn.txn_date && txn.amount ? [txn] : null;
+}
+
+// ---- National Bank of Greece ---------------------------------------------------------
+// "Alerts" from Nbg.donotreply@nbg.gr, one sentence each:
+//   "Σας ενημερώνουμε για την μεταφορά ποσού 25.00 € στο λογαριασμό *1234 DD/MM/YYYY HH:MM:SS."      money in
+//   "Σας ενημερώνουμε για μεταφορά ποσού 3000.00 € από τον λογαριασμό *1234 DD/MM/YYYY HH:MM:SS."   money out
+//   "Σας ενημερώνουμε για πίστωση εντολής ποσού 15.00 € στο λογαριασμό *1234 …"                     money in
+//   "Σας ενημερώνουμε για αγορά ποσού 38,90 € από ΑΓΟΡΑ <MERCHANT> με χρεωστική κάρτα μέσω του λογαριασμού *1234 …"
+// No balance and no counterparty for transfers. Only accounts set up in the
+// database are accepted, so alerts for any other account are rejected there.
+const NBG_ALERT_RE = /ΣΑΣ ΕΝΗΜΕΡΩΝΟΥΜΕ ΓΙΑ (?:ΤΗΝ )?(.+?) ΠΟΣΟΥ ([\d.,]+) ?(?:€|EUR) (.*?)ΛΟΓΑΡΙΑΣΜΟΥ? (\*+\d+) (\d{1,2}\/\d{1,2}\/\d{4}) (\d{1,2}:\d{2})/;
+
+function parseNbgAlert(email) {
+  if (!/nbg\.gr/i.test(email.from || '')) return null;
+  const m = emailText_(email).match(NBG_ALERT_RE);
+  if (!m) return null;
+  const [, kind, amount, middle, mask, date, time] = m;
+  let direction, txnType, description;
+  const merchant = middle.match(/ΑΠΟ (?:ΑΓΟΡΑ )?(.+?) ΜΕ (?:ΧΡΕΩΣΤΙΚΗ|ΠΙΣΤΩΤΙΚΗ|ΠΡΟΠΛΗΡΩΜΕΝΗ) ΚΑΡΤΑ/);
+  if (/^ΑΓΟΡΑ/.test(kind) && merchant) {
+    [direction, txnType, description] = ['debit', 'card_purchase', merchant[1]];
+  } else if (/^ΕΠΙΣΤΡΟΦΗ/.test(kind) && merchant) {
+    [direction, txnType, description] = ['credit', 'card_refund', merchant[1]];
+  } else if (/ΑΝΑΛΗΨΗ/.test(kind)) {
+    [direction, txnType, description] = ['debit', 'atm_withdrawal', kind];
+  } else if (/^ΑΠΟ ΤΟΝ /.test(middle)) {
+    [direction, txnType, description] = ['debit', 'transfer', `${kind} ΑΠΟ ΤΟΝ ΛΟΓΑΡΙΑΣΜΟ`];
+  } else if (/^ΣΤΟΝ? /.test(middle) || /ΠΙΣΤΩΣΗ/.test(kind)) {
+    [direction, txnType, description] = ['credit', 'transfer', /ΠΙΣΤΩΣΗ/.test(kind) ? kind : `${kind} ΣΤΟ ΛΟΓΑΡΙΑΣΜΟ`];
+  } else {
+    return null; // a sentence we do not know: reported, never guessed
+  }
+  const txn = {
+    account_mask: mask,
+    txn_date: parseDate(date),
+    txn_time: parseTime(time),
+    amount: parseAmount(amount),
+    currency: 'EUR',
+    direction,
+    txn_type: txnType,
+    description: description.trim(),
+  };
+  return txn.txn_date && txn.amount ? [txn] : null;
+}
+
+// Emails from the alert senders that are known not to be transactions (they would
+// otherwise be reported as unrecognised on every run). Piraeus confirms each transfer
+// you make in a second email; its balance alert already has the transaction.
+const IGNORED = [
+  (e) => /piraeusbank\.gr/i.test(e.from || '') && /ΕΓΧΡΗΜΑΤΗΣ ΣΥΝΑΛΛΑΓΗΣ/.test(normalizeText(e.subject)),
+];
+
+// alert_type is the transaction source in the database: every bank's account
+// alerts are 'account_alert'; the bank comes from the sender address.
 const PARSERS = [
   { type: 'card_alert', parse: parseCardAlert },
   { type: 'account_alert', parse: parseAccountAlert },
+  { type: 'account_alert', parse: parsePiraeusAlert },
+  { type: 'account_alert', parse: parseNbgAlert },
 ];
 
-// Returns { type, transactions } for a recognised email, or null.
+// Returns { type, transactions } for a recognised email ({ type: 'ignored',
+// transactions: [] } for a known non-transaction email), or null.
 function parseEmail(email) {
+  if (IGNORED.some((test) => test(email))) return { type: 'ignored', transactions: [] };
   for (const { type, parse } of PARSERS) {
     const txns = parse(email);
     if (txns && txns.length) {
@@ -193,5 +322,5 @@ function parseEmail(email) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { parseAmount, parseDate, parseTime, normalizeText, flatten_, htmlToText_, emailText_, parseEmail, parseAccountAlert, parseCardAlert };
+  module.exports = { parseAmount, parseDate, parseTime, normalizeText, flatten_, htmlToText_, emailText_, parseEmail, parseAccountAlert, parseCardAlert, parsePiraeusAlert, parseNbgAlert };
 }
