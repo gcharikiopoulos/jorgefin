@@ -232,6 +232,28 @@ export const dataProvider = {
       return [...byMonth.values()];
     }),
 
+  // Expense-side transactions (spending categories and uncategorised money out)
+  // from `fromMonth` up to, not including, `toMonth`: the Expenses page works
+  // them out in the browser, so its filters and comparisons stay instant.
+  getExpenses: (fromMonth, toMonth) =>
+    guard(async () => {
+      if (isMock) {
+        const rows = await (await getMock()).select('v_transactions');
+        return rows.filter((r) => r.month >= fromMonth && r.month < toMonth && (r.kind === 'expense' || (r.kind == null && r.direction === 'debit')));
+      }
+      const client = await getClient();
+      const cols = 'id,account_id,txn_date,txn_at,month,description,description_norm,merchant_name,category_id,category,parent_category,kind,color,direction,amount,signed_amount,txn_type,note';
+      return unwrap(await client.from('v_transactions').select(cols).eq('kind', 'expense').gte('month', fromMonth).lt('month', toMonth).order('txn_date', { ascending: false }).range(0, 19999)).data;
+    }),
+
+  // Accounts, for filters: [{ id, bank, name, kind }].
+  getAccounts: () =>
+    guard(async () => {
+      if (isMock) return (await getMock()).select('accounts');
+      const client = await getClient();
+      return unwrap(await client.from('accounts').select('id,bank,name,kind').order('id')).data;
+    }),
+
   // ---- writes ----
 
   // Creates a rule and applies it. Returns the number of transactions updated.

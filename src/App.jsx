@@ -12,6 +12,7 @@ import { Overview } from './dashboard/Overview.jsx';
 import { TransactionList } from './transactions/TransactionList.jsx';
 import { ReviewList } from './review/ReviewList.jsx';
 import { CategoryList } from './categories/CategoryList.jsx';
+import { Expenses } from './expenses/Expenses.jsx';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,6 +44,7 @@ export function App() {
       <Resource name="review" list={ReviewList} options={{ label: 'Review' }} />
       <Resource name="categories" list={CategoryList} options={{ label: 'Categories' }} recordRepresentation="name" />
       <CustomRoutes>
+        <Route path="/expenses" element={<Expenses />} />
         <Route path="/reports" element={<Reports />} />
       </CustomRoutes>
       <CustomRoutes noLayout>
