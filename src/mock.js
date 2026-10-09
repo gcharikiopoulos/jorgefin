@@ -266,6 +266,11 @@ const views = {
   v_merchant_summary: vMerchantSummary,
   v_balance_daily: vBalanceDaily,
   v_budget_status: () => [],
+  accounts: () => [
+    { id: 1, bank: 'Demo Bank', name: 'Everyday account', kind: 'cash' },
+    { id: 2, bank: 'Demo Bank', name: 'Savings', kind: 'savings' },
+    { id: 3, bank: 'Demo Invest', name: 'Fund', kind: 'investment' },
+  ],
   categories: () => categories.map((c) => ({ ...c })),
 };
 

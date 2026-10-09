@@ -15,11 +15,11 @@ import { BalanceChart, EmptyOrDenied, balanceSeries, avg, rollup, thisMonth, tra
 const SHOWN_CATEGORIES = 9;
 const AVERAGE_MONTHS = 6;
 
-const cardSx = { bgcolor: 'cockpit.panel', borderRadius: '14px', p: { xs: 2.5, md: 3 }, minWidth: 0 };
+export const cardSx = { bgcolor: 'cockpit.panel', borderRadius: '14px', p: { xs: 2.5, md: 3 }, minWidth: 0 };
 const figureSx = { fontVariantNumeric: 'tabular-nums' };
 const euro = (v) => `${amount(v)} €`;
 
-function Card({ title, link, children, sx, ...rest }) {
+export function Card({ title, link, children, sx, ...rest }) {
   return (
     <Box component="section" sx={{ ...cardSx, ...sx }} {...rest}>
       {(title || link) && (
@@ -33,11 +33,11 @@ function Card({ title, link, children, sx, ...rest }) {
   );
 }
 
-function TextLink({ to, children, sx }) {
+export function TextLink({ to, children, sx }) {
   return <Box component={RouterLink} to={to} sx={{ color: 'primary.main', fontSize: 14, fontWeight: 500, textDecoration: 'none', '&:hover': { textDecoration: 'underline' }, ...sx }}>{children}</Box>;
 }
 
-function MonthSwitch({ months, index, onChange }) {
+export function MonthSwitch({ months, index, onChange }) {
   return (
     <Stack direction="row" sx={{ alignItems: 'center' }}>
       <IconButton aria-label="Previous month" onClick={() => onChange(index + 1)} disabled={index >= months.length - 1} sx={{ width: 44, height: 44 }}><ChevronLeftIcon /></IconButton>
@@ -47,7 +47,7 @@ function MonthSwitch({ months, index, onChange }) {
   );
 }
 
-function Figure({ label, value, note, valueColor, noteColor }) {
+export function Figure({ label, value, note, valueColor, noteColor }) {
   return (
     <Box sx={{ ...cardSx, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
       <Typography sx={{ fontSize: 14, color: 'cockpit.tx3' }}>{label}</Typography>
@@ -117,7 +117,7 @@ function WhereItWent({ month, spent }) {
   const rest = groups.slice(SHOWN_CATEGORIES).reduce((s, g) => s + g.total, 0);
   const rows = [
     ...shown.map((g) => ({ key: g.category_id ?? 'none', label: g.label, total: g.total, uncat: g.category_id == null, to: transactionsLink({ month, category_id: g.category_id ?? 'none' }) })),
-    ...(rest > 0 ? [{ key: 'rest', label: 'Everything else', total: rest, rest: true, to: '/reports' }] : []),
+    ...(rest > 0 ? [{ key: 'rest', label: 'Everything else', total: rest, rest: true, to: `/expenses?month=${month}` }] : []),
   ];
   const max = Math.max(...rows.map((r) => r.total), 1);
   if (!rows.length) return <Typography sx={{ color: 'cockpit.tx3', py: 4, textAlign: 'center' }}>No spending this month.</Typography>;
@@ -216,7 +216,7 @@ export function Overview() {
       <Figures months={months} index={index} />
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 2, md: 3 }, alignItems: 'flex-start' }}>
-        <Card title="Where the money went" link={<TextLink to="/reports">Month details ›</TextLink>} sx={{ flex: '999 1 520px' }}>
+        <Card title="Where the money went" link={<TextLink to={`/expenses?month=${month}`}>Month details ›</TextLink>} sx={{ flex: '999 1 520px' }}>
           <WhereItWent month={month} spent={num(m.expenses)} />
         </Card>
         <Box sx={{ flex: '1 1 340px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: { xs: 2, md: 3 } }}>

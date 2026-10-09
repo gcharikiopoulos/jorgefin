@@ -9,6 +9,7 @@ import ReceiptIcon from '@mui/icons-material/ReceiptLongOutlined';
 import RuleIcon from '@mui/icons-material/RuleOutlined';
 import CategoryIcon from '@mui/icons-material/CategoryOutlined';
 import InsightsIcon from '@mui/icons-material/InsightsOutlined';
+import ExpensesIcon from '@mui/icons-material/DonutSmallOutlined';
 import { Layout as RaLayout, LoadingIndicator, TitlePortal, ToggleThemeButton, UserMenu, Logout } from 'react-admin';
 import { isMock, num } from './backend.js';
 import { useMonths } from './hooks.js';
@@ -19,6 +20,7 @@ import { version } from '../package.json';
 
 const SECTIONS = [
   { to: '/', label: 'Overview', key: 'o', end: true },
+  { to: '/expenses', label: 'Expenses', key: 'e' },
   { to: '/transactions', label: 'Transactions', key: 't' },
   { to: '/review', label: 'Review', key: 'r', badge: 'review' },
   { to: '/categories', label: 'Categories', key: 'c' },
@@ -105,7 +107,7 @@ function TopBar() {
   );
 }
 
-const TAB_ICONS = { '/': DashboardIcon, '/transactions': ReceiptIcon, '/review': RuleIcon, '/categories': CategoryIcon, '/reports': InsightsIcon };
+const TAB_ICONS = { '/': DashboardIcon, '/transactions': ReceiptIcon, '/expenses': ExpensesIcon, '/review': RuleIcon, '/categories': CategoryIcon, '/reports': InsightsIcon };
 
 function BottomTabs() {
   const reviewCount = useReviewCount();
