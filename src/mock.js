@@ -15,6 +15,8 @@ const categories = [
   { id: 9, name: 'Salary', parent_id: null, kind: 'income', color: '#0b8a3e', sort_order: 90 },
   { id: 10, name: 'Side income', parent_id: null, kind: 'income', color: '#5aa469', sort_order: 100 },
   { id: 11, name: 'Savings transfer', parent_id: null, kind: 'transfer', color: '#6c8893', sort_order: 110 },
+  { id: 13, name: 'Cash withdrawal', parent_id: null, kind: 'expense', color: '#8a8f98', sort_order: 85 },
+  { id: 14, name: 'Other expenses', parent_id: null, kind: 'expense', color: '#b0a99f', sort_order: 86 },
 ];
 
 const merchants = [
@@ -30,6 +32,8 @@ const merchants = [
   { id: 10, name: 'Orbit Cinema', desc: 'CARD ORBIT CINEMA 3', cat: 8, min: 9, max: 24, perMonth: 1 },
   { id: 11, name: 'Acme Widgets Ltd', desc: 'SALARY ACME WIDGETS LTD', cat: 9, min: 1850, max: 1850, perMonth: 1, credit: true, day: 28 },
   { id: 12, name: 'Own savings', desc: 'TRANSFER TO SAVINGS 9921', cat: 11, min: 200, max: 200, perMonth: 1, day: 29 },
+  { id: 13, name: 'ATM withdrawal', desc: 'ATM WITHDRAWAL 0042 CENTRAL', cat: 13, min: 60, max: 300, perMonth: 2 },
+  { id: 14, name: 'Market stall', desc: 'IRIS PAYMENT 69XXXXXX12', cat: 14, min: 15, max: 45, perMonth: 1 },
 ];
 
 // Descriptions that no rule matches yet, so they land in the review queue.
@@ -55,6 +59,7 @@ const normalise = (s) => s.toUpperCase().replace(/[0-9]+/g, '').replace(/\s+/g, 
 
 const rules = []; // { pattern, match_type, category_id, merchant_name }
 const txns = [];
+const splits = []; // { id, txn_id, category_id, amount, note }
 
 function addTxn(ym, day, description, amount, credit, merchant) {
   const date = `${ym}-${pad(day)}`;
@@ -118,8 +123,34 @@ function vTransactions() {
       color: c ? c.color : null,
       expense_amount: c && c.kind === 'expense' ? money(amount) : t.direction === 'debit' && !c ? money(amount) : '0.00',
       income_amount: c && c.kind === 'income' ? money(amount) : t.direction === 'credit' && !c ? money(amount) : '0.00',
+      split_count: splits.filter((s) => s.txn_id === t.id).length,
+      split_total: money(splits.filter((s) => s.txn_id === t.id).reduce((a, s) => a + s.amount, 0)),
     };
   });
+}
+
+// The transactions as category lines (db/010_splits.sql): split lines, plus the
+// part of each transaction that is not split off.
+function vTxnLines() {
+  const out = [];
+  for (const row of vTransactions()) {
+    const own = splits.filter((s) => s.txn_id === row.id);
+    const rest = Math.round((Number(row.amount) - own.reduce((a, s) => a + s.amount, 0)) * 100) / 100;
+    const line = (categoryId, amt, note, splitId) => {
+      const c = catById(categoryId);
+      const parent = c && c.parent_id != null ? catById(c.parent_id) : null;
+      const kind = c ? c.kind : row.direction === 'credit' ? 'income' : 'expense';
+      const signed = row.direction === 'credit' ? amt : -amt;
+      return {
+        ...row, category_id: categoryId, category: c ? c.name : null, parent_category: parent ? parent.name : null, kind: c ? c.kind : null, color: c ? c.color : null,
+        amount: money(amt), signed_amount: money(signed), note, split_id: splitId,
+        expense_amount: kind === 'expense' ? money(-signed) : '0.00', income_amount: kind === 'income' ? money(signed) : '0.00',
+      };
+    };
+    if (!own.length || rest > 0) out.push(line(row.category_id, own.length ? rest : Number(row.amount), row.note, null));
+    for (const s of own) out.push(line(s.category_id, s.amount, s.note ?? row.note, s.id));
+  }
+  return out;
 }
 
 // Daily balance worked back from an invented closing balance.
@@ -141,13 +172,15 @@ function vBalanceDaily() {
 
 function vMonthlySummary() {
   const byMonth = new Map();
-  for (const t of vTransactions()) {
+  const seen = new Set();
+  const seenUncat = new Set();
+  for (const t of vTxnLines()) {
     const s = byMonth.get(t.month) || { month: t.month, income: 0, expenses: 0, transfers_out: 0, txn_count: 0, uncategorized_count: 0 };
     s.income += Number(t.income_amount);
     s.expenses += Number(t.expense_amount);
     if (t.kind === 'transfer' && t.direction === 'debit') s.transfers_out += Number(t.amount);
-    s.txn_count += 1;
-    if (t.category_id == null) s.uncategorized_count += 1;
+    if (!seen.has(t.id)) { seen.add(t.id); s.txn_count += 1; }
+    if (t.category_id == null && !seenUncat.has(t.id)) { seenUncat.add(t.id); s.uncategorized_count += 1; }
     byMonth.set(t.month, s);
   }
   return [...byMonth.values()].map((s) => ({
@@ -164,7 +197,7 @@ function vMonthlySummary() {
 
 function vMonthlyByCategory() {
   const groups = new Map();
-  for (const t of vTransactions()) {
+  for (const t of vTxnLines()) {
     const key = `${t.month}|${t.category_id}|${t.kind}`;
     const g = groups.get(key) || { month: t.month, category_id: t.category_id, category: t.category, parent_category: null, kind: t.kind || (t.direction === 'debit' ? 'expense' : 'income'), color: t.color, total: 0, txn_count: 0 };
     g.total += g.kind === 'income' ? Number(t.income_amount) : g.kind === 'expense' ? Number(t.expense_amount) : Number(t.amount);
@@ -180,7 +213,7 @@ function vMonthlyByCategory() {
 
 function vDailySpend() {
   const days = new Map();
-  for (const t of vTransactions()) {
+  for (const t of vTxnLines()) {
     const spend = Number(t.expense_amount);
     if (!spend) continue;
     const d = days.get(t.txn_date) || { txn_date: t.txn_date, spend: 0, txn_count: 0 };
@@ -196,6 +229,7 @@ function vReviewQueue() {
   const groups = new Map();
   for (const t of txns) {
     if (t.category_id != null) continue;
+    if (splits.filter((s) => s.txn_id === t.id).reduce((a, s) => a + s.amount, 0) >= Number(t.amount)) continue;
     const g = groups.get(t.description_norm) || { description_norm: t.description_norm, sample_description: t.description, txn_count: 0, debit_count: 0, credit_count: 0, total_out: 0, total_in: 0, first_seen: t.txn_date, last_seen: t.txn_date };
     const amount = Number(t.amount);
     g.txn_count += 1;
@@ -259,6 +293,8 @@ function fin_set_category({ p_txn_id, p_category_id, p_note = null }) {
 
 const views = {
   v_transactions: vTransactions,
+  v_txn_lines: vTxnLines,
+  transaction_splits: () => splits.map((s) => ({ ...s, amount: money(s.amount), category: catById(s.category_id)?.name ?? null })),
   v_monthly_summary: vMonthlySummary,
   v_monthly_by_category: vMonthlyByCategory,
   v_daily_spend: vDailySpend,
@@ -332,7 +368,22 @@ function fin_move_category({ p_id, p_direction }) {
   return null;
 }
 
-const functions = { fin_categorize, fin_set_category, fin_save_category, fin_delete_category, fin_move_category };
+// Same rules as db/010_splits.sql.
+function fin_set_splits({ p_txn_id, p_lines }) {
+  const t = txns.find((x) => x.id === Number(p_txn_id));
+  if (!t) throw new Error('Transaction not found');
+  const lines = p_lines || [];
+  if (lines.some((l) => l.category_id == null || !(Number(l.amount) > 0))) throw new Error('Every line needs a category and an amount above zero');
+  if (lines.some((l) => !catById(Number(l.category_id)))) throw new Error('Unknown category');
+  const total = lines.reduce((a, l) => a + Math.round(Number(l.amount) * 100) / 100, 0);
+  if (total > Number(t.amount) + 0.001) throw new Error(`The lines add up to ${money(total)} €, more than the payment (${t.amount} €)`);
+  for (let i = splits.length - 1; i >= 0; i--) if (splits[i].txn_id === t.id) splits.splice(i, 1);
+  let nextId = Math.max(0, ...splits.map((s) => s.id)) + 1;
+  for (const l of lines) splits.push({ id: nextId++, txn_id: t.id, category_id: Number(l.category_id), amount: Math.round(Number(l.amount) * 100) / 100, note: l.note || null });
+  return lines.length;
+}
+
+const functions = { fin_set_splits, fin_categorize, fin_set_category, fin_save_category, fin_delete_category, fin_move_category };
 
 const delay = () => new Promise((r) => setTimeout(r, 150 + Math.random() * 250));
 

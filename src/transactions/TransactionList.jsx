@@ -187,7 +187,7 @@ const hideSm = { display: { xs: 'none', md: 'table-cell' } };
 const hideXs = { display: { xs: 'none', sm: 'table-cell' } };
 
 function Ledger() {
-  const { data, isPending, filterValues, sort, setSort } = useListContext();
+  const { data, isPending, filterValues, sort, setSort, setFilters } = useListContext();
   const byDay = !sort || sort.field === 'txn_date';
   const rows = useMemo(() => data || [], [data]);
   const wide = useMediaQuery((t) => t.breakpoints.up('lg'));
@@ -256,6 +256,7 @@ function Ledger() {
     onClose: () => setInspectId(null),
     onPrev: cursor > 0 ? () => inspectAt(cursor - 1) : undefined,
     onNext: cursor < rows.length - 1 ? () => inspectAt(cursor + 1) : undefined,
+    onShowAll: (norm) => setFilters({ description_norm: norm }),
   };
 
   return (
@@ -316,7 +317,7 @@ function Ledger() {
                             {extra && <Mono sx={{ fontSize: 13, color: 'cockpit.tx3', ml: 1, display: { xs: 'none', sm: 'inline' } }}>{extra}</Mono>}
                           </Box>
                           <Box component="td" sx={{ ...td, ...hideSm, fontSize: 13.5, color: 'cockpit.tx2' }}>{txnTypeLabel(r.txn_type)}</Box>
-                          <Box component="td" sx={{ ...td, whiteSpace: 'normal', overflow: 'visible', py: 0.5, px: { xs: 0.75, sm: 1.5 } }}><CategoryTag wrap categoryId={r.category_id} name={r.category} color={r.color} /></Box>
+                          <Box component="td" sx={{ ...td, whiteSpace: 'normal', overflow: 'visible', py: 0.5, px: { xs: 0.75, sm: 1.5 } }}><CategoryTag wrap categoryId={r.category_id} name={r.category} color={r.color} />{r.split_count > 0 && <Box component="span" sx={{ display: 'block', fontSize: 12.5, color: 'cockpit.tx3', mt: 0.25 }}>Split · {r.split_count + (num(r.split_total) < num(r.amount) ? 1 : 0)} parts</Box>}</Box>
                           <Box component="td" sx={{ ...td, ...hideSm, ...monoSx, fontSize: 13, color: 'cockpit.tx3' }}>{sourceShort(r.source)}</Box>
                           <Box component="td" sx={{ ...td, ...monoSx, fontSize: 14, fontWeight: 600, textAlign: 'right', color: r.direction === 'credit' ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(r.signed_amount)}</Box>
                         </Box>

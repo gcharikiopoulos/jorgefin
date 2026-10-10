@@ -238,12 +238,12 @@ export const dataProvider = {
   getExpenses: (fromMonth, toMonth) =>
     guard(async () => {
       if (isMock) {
-        const rows = await (await getMock()).select('v_transactions');
+        const rows = await (await getMock()).select('v_txn_lines');
         return rows.filter((r) => r.month >= fromMonth && r.month < toMonth && (r.kind === 'expense' || (r.kind == null && r.direction === 'debit')));
       }
       const client = await getFreshClient();
-      const cols = 'id,account_id,txn_date,txn_at,month,description,description_norm,merchant_name,category_id,category,parent_category,kind,color,direction,amount,signed_amount,txn_type,note';
-      return unwrap(await client.from('v_transactions').select(cols).eq('kind', 'expense').gte('month', fromMonth).lt('month', toMonth).order('txn_date', { ascending: false }).range(0, 19999)).data;
+      const cols = 'id,split_id,account_id,txn_date,txn_at,month,description,description_norm,merchant_name,category_id,category,parent_category,kind,color,direction,amount,signed_amount,txn_type,note';
+      return unwrap(await client.from('v_txn_lines').select(cols).eq('kind', 'expense').gte('month', fromMonth).lt('month', toMonth).order('txn_date', { ascending: false }).range(0, 19999)).data;
     }),
 
   // Accounts, for filters: [{ id, bank, name, kind }].
@@ -290,6 +290,18 @@ export const dataProvider = {
     guard(async () => num(await categoryWrite('fin_delete_category', { p_id: id, p_replace_id: replaceId }))),
 
   moveCategory: ({ id, direction }) => guard(() => categoryWrite('fin_move_category', { p_id: id, p_direction: direction })),
+
+  // A transaction's split lines: [{ id, txn_id, category_id, category, amount, note }].
+  getSplits: (txnId) =>
+    guard(async () => {
+      if (isMock) return (await (await getMock()).select('transaction_splits')).filter((r) => String(r.txn_id) === String(txnId));
+      const client = await getFreshClient();
+      const rows = unwrap(await client.from('transaction_splits').select('id,txn_id,category_id,amount,note,categories(name)').eq('txn_id', txnId).order('id')).data;
+      return rows.map(({ categories, ...r }) => ({ ...r, category: categories?.name ?? null }));
+    }),
+
+  // Replaces a transaction's split lines; [] removes the split. Returns the number saved.
+  setSplits: ({ txnId, lines }) => guard(async () => num(await rpc('fin_set_splits', { p_txn_id: txnId, p_lines: lines }))),
 
   setCategory: ({ txnId, categoryId, note = null }) =>
     guard(() => rpc('fin_set_category', { p_txn_id: txnId, p_category_id: categoryId, p_note: note || null })),
