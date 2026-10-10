@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Box, Button, IconButton, MenuItem, Skeleton, Stack, TextField, Typography, useTheme } from '@mui/material';
 import { useDataProvider, Title } from 'react-admin';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { GridLines, KpiTile, Label, Mono, Panel, QueryState, delta, niceTicks, signedPercent, tone } from './parts.jsx';
@@ -672,7 +672,18 @@ function TopMerchants({ query }) {
 
 export function EmptyOrDenied() {
   const query = useQuery({ queryKey: ['access-check'], queryFn: checkAccess, staleTime: 0 });
-  if (query.isPending) return <Skeleton variant="rectangular" height={200} sx={{ mt: 1 }} />;
+  const queryClient = useQueryClient();
+  const [retried, setRetried] = useState(false);
+  // Signed in and allowed, yet nothing came back: the data was most likely read
+  // with a token that had expired while the tab was idle. The access check has
+  // renewed the session, so reload everything once before saying there is no data.
+  useEffect(() => {
+    if (query.data === 'allowed' && !retried) {
+      setRetried(true);
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] !== 'access-check' });
+    }
+  }, [query.data, retried, queryClient]);
+  if (query.isPending || (query.data === 'allowed' && !retried)) return <Skeleton variant="rectangular" height={200} sx={{ mt: 1 }} />;
   if (query.data === 'denied') return <Navigate to="/not-authorised" replace />;
   if (query.data === 'signed-out') return <Navigate to="/login" replace />;
   return <Typography sx={{ p: 4 }} color="text.secondary">No transactions yet.</Typography>;

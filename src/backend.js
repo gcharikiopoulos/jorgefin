@@ -28,6 +28,31 @@ export function getClient() {
   return clientPromise;
 }
 
+// The Data API client, with the session renewed first when it may have gone
+// stale. After the tab has been idle the stored token can be expired; a request
+// sent with it is not refused but runs without the user, so every view comes back
+// empty (the "No transactions yet" after a pause). getSession() renews the token,
+// so it runs before the first request after a pause and when the tab comes back.
+// Concurrent requests share one renewal.
+const SESSION_CHECK_MS = 60_000;
+let sessionCheck = null;
+let sessionCheckedAt = 0;
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') sessionCheckedAt = 0;
+  });
+}
+
+export async function getFreshClient() {
+  const client = await getClient();
+  if (!sessionCheck || Date.now() - sessionCheckedAt > SESSION_CHECK_MS) {
+    sessionCheckedAt = Date.now();
+    sessionCheck = client.auth.getSession().catch((err) => console.error('Session refresh failed', err));
+  }
+  await sessionCheck;
+  return client;
+}
+
 // Unwraps a PostgREST response, turning 401/403 and permission errors into AuthError.
 export function unwrap({ data, error, status, count }) {
   if (error) {

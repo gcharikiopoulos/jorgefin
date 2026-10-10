@@ -2,7 +2,7 @@
 // Reads come from the views; writes only go through fin_categorize and fin_set_category.
 
 import { HttpError } from 'react-admin';
-import { AuthError, getClient, getMock, isMock, nextMonth, num, unwrap } from './backend.js';
+import { AuthError, getFreshClient, getMock, isMock, nextMonth, num, unwrap } from './backend.js';
 
 // resource -> { view, id }
 const RESOURCES = {
@@ -118,7 +118,7 @@ async function list(resource, { pagination, sort, filter } = {}) {
     else rows = mockSort(rows, sort);
     return { data: rows.slice((page - 1) * perPage, page * perPage), total: rows.length };
   }
-  const client = await getClient();
+  const client = await getFreshClient();
   let query = applyFilters(client.from(view).select('*', { count: 'exact' }), filter);
   if (sort?.field && sort.field !== 'id') query = query.order(sort.field, { ascending: sort.order !== 'DESC', nullsFirst: false });
   // Same-day transactions: by time where the source has one, then by entry order.
@@ -133,7 +133,7 @@ async function list(resource, { pagination, sort, filter } = {}) {
 
 async function rpc(name, args) {
   if (isMock) return (await getMock()).rpc(name, args);
-  const client = await getClient();
+  const client = await getFreshClient();
   return unwrap(await client.rpc(name, args)).data;
 }
 
@@ -179,7 +179,7 @@ export const dataProvider = {
   getMonthlySummary: () =>
     guard(async () => {
       if (isMock) return mockSort(await (await getMock()).select('v_monthly_summary'), { field: 'month', order: 'DESC' });
-      const client = await getClient();
+      const client = await getFreshClient();
       return unwrap(await client.from('v_monthly_summary').select('*').order('month', { ascending: false })).data;
     }),
 
@@ -189,7 +189,7 @@ export const dataProvider = {
         const rows = await (await getMock()).select('v_monthly_by_category');
         return mockSort(rows.filter((r) => r.month === month && r.kind === kind), { field: 'total', order: 'DESC' });
       }
-      const client = await getClient();
+      const client = await getFreshClient();
       return unwrap(await client.from('v_monthly_by_category').select('*').eq('month', month).eq('kind', kind).order('total', { ascending: false })).data;
     }),
 
@@ -200,7 +200,7 @@ export const dataProvider = {
         const rows = await (await getMock()).select('v_daily_spend');
         return mockSort(rows.filter((r) => r.txn_date >= month && r.txn_date < end), { field: 'txn_date', order: 'ASC' });
       }
-      const client = await getClient();
+      const client = await getFreshClient();
       return unwrap(await client.from('v_daily_spend').select('*').gte('txn_date', month).lt('txn_date', end).order('txn_date')).data;
     }),
 
@@ -213,7 +213,7 @@ export const dataProvider = {
       let rows;
       if (isMock) rows = await (await getMock()).select('v_balance_daily');
       else {
-        const client = await getClient();
+        const client = await getFreshClient();
         // Newest first, so a server row cap would drop the oldest days, not the latest.
         rows = unwrap(await client.from('v_balance_daily').select('day,balance,kind').order('day', { ascending: false }).range(0, 19999)).data;
       }
@@ -241,7 +241,7 @@ export const dataProvider = {
         const rows = await (await getMock()).select('v_transactions');
         return rows.filter((r) => r.month >= fromMonth && r.month < toMonth && (r.kind === 'expense' || (r.kind == null && r.direction === 'debit')));
       }
-      const client = await getClient();
+      const client = await getFreshClient();
       const cols = 'id,account_id,txn_date,txn_at,month,description,description_norm,merchant_name,category_id,category,parent_category,kind,color,direction,amount,signed_amount,txn_type,note';
       return unwrap(await client.from('v_transactions').select(cols).eq('kind', 'expense').gte('month', fromMonth).lt('month', toMonth).order('txn_date', { ascending: false }).range(0, 19999)).data;
     }),
@@ -250,7 +250,7 @@ export const dataProvider = {
   getAccounts: () =>
     guard(async () => {
       if (isMock) return (await getMock()).select('accounts');
-      const client = await getClient();
+      const client = await getFreshClient();
       return unwrap(await client.from('accounts').select('id,bank,name,kind').order('id')).data;
     }),
 
@@ -273,7 +273,7 @@ export const dataProvider = {
       let rows;
       if (isMock) rows = await (await getMock()).select('v_monthly_by_category');
       else {
-        const client = await getClient();
+        const client = await getFreshClient();
         rows = unwrap(await client.from('v_monthly_by_category').select('category_id,txn_count').range(0, 9999)).data;
       }
       const usage = new Map();
