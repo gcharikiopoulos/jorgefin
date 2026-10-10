@@ -3,7 +3,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Box, Skeleton, Stack, Typography } from '@mui/material';
-import { List, useListContext } from 'react-admin';
+import { List, Title, useListContext } from 'react-admin';
+import { useSearchParams } from 'react-router-dom';
+import { ExplainList, useExplainItems } from './ExplainList.jsx';
+import { useMonths } from '../hooks.js';
 import { CategorizePanel } from '../components/CategorizePanel.jsx';
 import { SplitLayout } from '../components/SidePanel.jsx';
 import { hideBelowMd, hideBelowSm, isTyping, rowSx, tableSx, tdSx, thSx } from '../components/dense.js';
@@ -140,10 +143,43 @@ function ReviewBody() {
   );
 }
 
-export function ReviewList() {
+function ReviewTabs({ tab, onChange }) {
+  const { data: months = [] } = useMonths();
+  const uncat = months.reduce((s, m) => s + num(m.uncategorized_count), 0);
+  const { data: vague = [] } = useExplainItems();
+  const open = vague.filter((r) => r.open > 0).length;
+  const tabs = [['uncat', 'Uncategorised', uncat], ['explain', 'Cash & other', open]];
   return (
-    <List title="Review" actions={false} component="div" sort={{ field: 'txn_count', order: 'DESC' }} perPage={200} exporter={false} empty={<Empty />} pagination={false} sx={{ '& .RaList-main': { mt: 1.25 } }}>
-      <ReviewBody />
-    </List>
+    <Box role="tablist" aria-label="Review" sx={{ display: 'flex', gap: 0.5, mt: 1.25, mb: 1.25, p: 0.5, bgcolor: 'cockpit.panel', borderRadius: '12px', width: 'fit-content', maxWidth: '100%' }}>
+      {tabs.map(([key, label, count]) => (
+        <Box key={key} component="button" type="button" role="tab" aria-selected={tab === key} onClick={() => onChange(key)}
+          sx={{ font: 'inherit', fontSize: 15, fontWeight: tab === key ? 600 : 500, border: 0, cursor: 'pointer', borderRadius: '9px', px: 2, minHeight: 40, display: 'inline-flex', alignItems: 'center', gap: 1,
+            bgcolor: tab === key ? 'cockpit.hatch' : 'transparent', color: tab === key ? 'cockpit.accText' : 'cockpit.tx2' }}>
+          {label}
+          {count > 0 && <Box component="span" sx={{ fontSize: 12, fontWeight: 600, color: 'cockpit.warn', bgcolor: 'cockpit.warnBg', borderRadius: '999px', px: '7px', lineHeight: '18px' }}>{count}</Box>}
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+export function ReviewList() {
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') === 'explain' ? 'explain' : 'uncat';
+  const onTab = (t) => setParams(t === 'explain' ? { tab: 'explain' } : {}, { replace: true });
+  return (
+    <Box>
+      <ReviewTabs tab={tab} onChange={onTab} />
+      {tab === 'uncat' ? (
+        <List title="Review" actions={false} component="div" sort={{ field: 'txn_count', order: 'DESC' }} perPage={200} exporter={false} empty={<Empty />} pagination={false} sx={{ '& .RaList-main': { mt: 0 } }}>
+          <ReviewBody />
+        </List>
+      ) : (
+        <>
+          <Title title="Review" />
+          <ExplainList />
+        </>
+      )}
+    </Box>
   );
 }

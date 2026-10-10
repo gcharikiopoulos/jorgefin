@@ -495,7 +495,7 @@ function Details({ rows, prevRows, nameOf, topOf, colorOf, accountName }) {
             </tr></thead>
             <tbody>
               {sortRows(tx, tsort).slice(0, limit).map((r) => (
-                <tr key={r.id}>
+                <tr key={`${r.id}-${r.split_id ?? 0}`}>
                   <Box component="td" sx={{ ...tdSx, color: 'cockpit.tx2' }}>{formatDayMonth(r.txn_date)}</Box>
                   <Box component="td" sx={tdSx} title={[r.name, r.note].filter(Boolean).join(' · ')}>
                     <Box component="span" sx={{ fontWeight: 600 }}>{r.name}</Box>

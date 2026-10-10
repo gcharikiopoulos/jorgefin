@@ -4,12 +4,13 @@
 import { useEffect, useState } from 'react';
 import { Alert, Box, Button, IconButton, Stack, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { useDataProvider, useListContext, useNotify, useRefresh } from 'react-admin';
+import { useDataProvider, useNotify, useRefresh } from 'react-admin';
 import CloseIcon from '@mui/icons-material/Close';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { CategorySelect } from '../components/CategorySelect.jsx';
 import { CategoryTag } from '../components/CategoryTag.jsx';
+import { SplitEditor } from '../components/SplitEditor.jsx';
 import { useIdentical } from '../components/SetCategoryDialog.jsx';
 import { Label, Mono } from '../dashboard/parts.jsx';
 import { amount, formatDate, formatShortMonth, formatTime, normalizeText, parseDate, signedAmount, sourceLabel, suggestPrefix, txnName, txnTypeLabel } from '../format.js';
@@ -30,9 +31,8 @@ function useHistory(transaction) {
   });
 }
 
-function History({ transaction }) {
+function History({ transaction, onShowAll }) {
   const query = useHistory(transaction);
-  const { setFilters } = useListContext();
   if (!query.data) return null;
   const rows = query.data;
   const end = parseDate(transaction.txn_date);
@@ -56,8 +56,8 @@ function History({ transaction }) {
       <Mono component="div" sx={{ fontSize: 13, color: 'cockpit.tx3', mt: 0.75, '& b': { color: 'cockpit.tx', fontWeight: 600 } }}>
         <b>{rows.length}</b> {rows.length === 1 ? 'time' : 'times'} · avg <b>{amount(avg)}</b> · first <b>{formatDate(first.txn_date)}</b>
       </Mono>
-      {rows.length > 1 && (
-        <Button size="small" onClick={() => setFilters({ description_norm: transaction.description_norm })} sx={{ mt: 0.5, px: 0, minHeight: 32 }}>
+      {rows.length > 1 && onShowAll && (
+        <Button size="small" onClick={() => onShowAll(transaction.description_norm)} sx={{ mt: 0.5, px: 0, minHeight: 32 }}>
           Show all {rows.length} transactions ›
         </Button>
       )}
@@ -74,7 +74,7 @@ function Fact({ k, children }) {
   );
 }
 
-export function Inspector({ transaction: t, onClose, onPrev, onNext }) {
+export function Inspector({ transaction: t, onClose, onPrev, onNext, onShowAll, splitOpen = false }) {
   const dataProvider = useDataProvider();
   const notify = useNotify();
   const refresh = useRefresh();
@@ -131,6 +131,12 @@ export function Inspector({ transaction: t, onClose, onPrev, onNext }) {
     }
   };
 
+  const splitBox = t.direction !== 'credit' && (
+    <Box>
+      <Box sx={{ fontSize: 15, fontWeight: 600, mb: 1 }}>Split</Box>
+      <SplitEditor transaction={t} startOpen={splitOpen} />
+    </Box>
+  );
   return (
     <Box component="aside" aria-label="Selected transaction" sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, bgcolor: 'cockpit.panel', height: '100%' }}>
       <Stack direction="row" sx={{ alignItems: 'center', gap: 0.5, height: { xs: 52, md: 40 }, px: 1.5, '& .MuiIconButton-root': { p: { xs: '10px', md: '6px' } }, borderBottom: 1, borderColor: 'cockpit.line', flex: 'none' }}>
@@ -164,6 +170,8 @@ export function Inspector({ transaction: t, onClose, onPrev, onNext }) {
           {t.description && <Fact k="Bank text"><Mono sx={{ fontSize: 13, color: 'cockpit.tx2' }}>{t.description}</Mono></Fact>}
         </Box>
 
+        {splitOpen && splitBox}
+
         <Box component="form" onSubmit={save} sx={{ borderRadius: '12px', p: 2, display: 'flex', flexDirection: 'column', gap: 1.25, bgcolor: 'cockpit.panel2' }}>
           <Box sx={{ fontSize: 15, fontWeight: 600 }}>Categorise</Box>
           <CategorySelect id="inspector-category" value={categoryId} onChange={setCategoryId} />
@@ -185,7 +193,9 @@ export function Inspector({ transaction: t, onClose, onPrev, onNext }) {
           </Button>
         </Box>
 
-        <History transaction={t} />
+        {!splitOpen && splitBox}
+
+        <History transaction={t} onShowAll={onShowAll} />
       </Box>
     </Box>
   );
