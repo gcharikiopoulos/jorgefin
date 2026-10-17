@@ -1,7 +1,7 @@
 // React Admin auth provider over Neon Auth (Google, full-page redirect).
 // The session stays where the Neon SDK keeps it; nothing is copied to storage here.
 
-import { appUrl, checkAccess, getClient, getMock, isMock } from './backend.js';
+import { appUrl, checkAccess, getClient, getMock, isMock, withTimeout } from './backend.js';
 
 let mockSignedIn = true;
 
@@ -37,8 +37,8 @@ export const authProvider = {
       if (mockSignedIn) return;
       throw { redirectTo: '/login', message: false };
     }
-    const client = await getClient();
-    const { data, error } = await client.auth.getSession();
+    const client = await withTimeout(getClient(), 20000, 'The app could not load its sign-in code. Check the connection and reload.');
+    const { data, error } = await withTimeout(client.auth.getSession(), 20000, 'The sign-in service did not answer. Check the connection and reload.');
     if (error) console.error('Session check failed', error);
     if (!data?.session) throw { redirectTo: '/login', message: false };
   },
