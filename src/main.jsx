@@ -3,10 +3,13 @@ import { createRoot } from 'react-dom/client';
 import '@fontsource-variable/commissioner';
 import '@fontsource-variable/jetbrains-mono';
 import { App } from './App.jsx';
+import { CrashScreen } from './components/CrashScreen.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <CrashScreen>
+      <App />
+    </CrashScreen>
   </StrictMode>,
 );
 
