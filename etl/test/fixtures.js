@@ -30,6 +30,11 @@ const cardHtml = (date, time, amount, merchant) => `<html><head><title>Alpha Ale
 // What Gmail's plain-text conversion makes of it: bold text wrapped in asterisks.
 const cardStarred = (date, time, amount, merchant) => `Αγαπητέ πελάτη, Θα θέλαμε να σας ενημερώσουμε ότι πραγματοποιήθηκε συναλλαγή με τη κάρτα *Gold Example Visa* με αριθμό *************1111* στις *${date} ${time}*, αξίας *EUR ${amount}* στην επιχείρηση *${merchant}*. Με εκτίμηση, *Alpha Bank*`;
 
+// A forward as Gmail writes it: a header block naming the original sender, then the original text.
+const forwardHeader = (lang, from, subject) => (lang === 'el'
+  ? `---------- Προωθημένο μήνυμα ---------\nΑπό: <${from}>\nΗμερομηνία: Δευ 12 Ιαν 2026 στις 8:47 πμ\nΘέμα: ${subject}\nΠρος: <someone@example.com>\n\n`
+  : `---------- Forwarded message ---------\nFrom: Alpha Bank <${from}>\nDate: Mon, 12 Jan 2026 at 08:47\nSubject: ${subject}\nTo: <someone@example.com>\n\n`);
+
 const ACCOUNT_FROM = 'Alpha Bank <alerts@alpha.gr>';
 const CARD_FROM = 'ebanking@alpha.gr';
 
@@ -44,6 +49,10 @@ module.exports = {
   standingOrder: { id: 'msg-c3', from: CARD_FROM, subject: 'Alpha Alerts', date: '2026-01-11T07:00:00Z', body: standingOrder('11/01/2026', '09:00', 'Example Charity United States', '5,00') },
   cardHtml: { id: 'msg-c4', from: CARD_FROM, subject: 'Alpha Alerts', date: '2026-01-12T06:00:00Z', body: '', html: cardHtml('12/01/2026', '08:46', '3,98', 'EXAMPLE KIOSK Greece') },
   cardStarred: { id: 'msg-c5', from: CARD_FROM, subject: 'Alpha Alerts', date: '2026-01-12T06:00:00Z', body: cardStarred('12/01/2026', '08:46', '3,98', 'EXAMPLE KIOSK Greece') },
+  fwdCard: { id: 'msg-f1', from: 'Someone <someone@example.com>', subject: 'Fwd: Alpha Alerts', date: '2026-01-12T06:47:00Z', body: forwardHeader('el', 'ebanking@alpha.gr', 'Alpha Alerts') + cardPurchase('12/01/2026', '08:46', 'EUR', '3,98', 'EXAMPLE KIOSK Greece') },
+  fwdAccount: { id: 'msg-f2', from: 'someone@example.com', subject: 'Fwd: x', date: '2026-01-12T07:00:00Z', body: forwardHeader('en', 'alerts@alpha.gr', 'Alpha Bank – Υπηρεσία Alpha Alerts. ΛΟΓΑΡΙΑΣΜΟΣ ***999') + accountAlert('12/01/2026', '09:00', 'ΧΡΕΩΣΤ.ΚΑΡΤΑ-ΑΓΟΡΑ', '7,20', 'Χρέωση') },
+  fwdHtmlOnly: { id: 'msg-f3', from: 'someone@example.com', subject: 'Fwd: Alpha Alerts', date: '2026-01-12T07:00:00Z', body: '', html: `<div class="gmail_attr">---------- Προωθημένο μήνυμα ---------<br>Από: <span>&lt;<a href="mailto:ebanking@alpha.gr">ebanking@alpha.gr</a>&gt;</span><br>Θέμα: Alpha Alerts<br></div>` + cardHtml('12/01/2026', '08:46', '3,98', 'EXAMPLE KIOSK Greece') },
+  fwdPersonal: { id: 'msg-f4', from: 'someone@example.com', subject: 'Fwd: school trip', date: '2026-01-12T07:00:00Z', body: forwardHeader('el', 'teacher@example.org', 'School trip') + 'See you at alpha.gr park.' },
   unrelated: { id: 'msg-x', from: 'alerts@alpha.gr', subject: 'News', date: '2026-01-12T07:00:00Z', body: 'Νέα προϊόντα από την Alpha Bank.' },
 };
 

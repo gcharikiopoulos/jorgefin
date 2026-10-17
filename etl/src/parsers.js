@@ -119,6 +119,35 @@ function isBankSender(from) {
   return BANK_DOMAINS.some((d) => fromDomain_(from, d));
 }
 
+// ---- Forwarded alerts -------------------------------------------------------------
+// A forwarded email ("---------- Forwarded message ---------" or the Greek
+// "Προωθημένο μήνυμα") names the original sender and subject in a header block.
+// Returns { from, subject } for the original email, or null when it is not a forward.
+const FORWARD_MARKER_RE = /-{3,}\s*(?:Προωθημένο μήνυμα|Forwarded message)\s*-{3,}/i;
+function unwrapForwarded(text) {
+  const s = String(text || '');
+  const marker = s.match(FORWARD_MARKER_RE);
+  if (!marker) return null;
+  const header = s.slice(marker.index + marker[0].length, marker.index + marker[0].length + 800);
+  const from = header.match(/(?:Από|From)\s*:\s*[^\n]*?<?([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})>?/);
+  if (!from) return null;
+  const subject = header.match(/(?:Θέμα|Subject)\s*:\s*([^\n]*)/);
+  return { from: from[1].toLowerCase(), subject: subject ? subject[1].trim() : '' };
+}
+
+// Same, for an email: the plain text first, else the HTML with its line breaks kept
+// (the header fields are told apart by line).
+function unwrapForwardedEmail(email) {
+  const plain = unwrapForwarded(email.body);
+  if (plain || !email.html) return plain;
+  const lines = String(email.html)
+    .replace(/<br\s*\/?>|<\/(?:div|p|tr|li|h\d)>/gi, '\n')
+    .split('\n')
+    .map((line) => htmlToText_(line))
+    .join('\n');
+  return unwrapForwarded(lines);
+}
+
 // ---- Alpha Bank parsers ---------------------------------------------------------
 // Each returns null for emails it does not recognise, so unknown formats are
 // reported for review, never guessed.
@@ -141,8 +170,9 @@ const ACCOUNT_TXN_TYPES = [
 
 function parseAccountAlert(email) {
   if (!fromDomain_(email.from, 'alpha.gr')) return null;
-  // Account alerts parse reliably from Gmail's plain text, so they keep using it.
-  const m = normalizeText(flatten_(email.body)).match(ACCOUNT_ALERT_RE);
+  // Account alerts parse reliably from Gmail's plain text, so that comes first;
+  // the HTML text is the fallback (forwarded copies can wrap the plain text differently).
+  const m = normalizeText(flatten_(email.body)).match(ACCOUNT_ALERT_RE) || (email.html ? emailText_(email).match(ACCOUNT_ALERT_RE) : null);
   if (!m) return null;
   const [, date, time, mask, type, amount, currency, side] = m;
   const typeText = type.trim();
@@ -346,5 +376,5 @@ function parseEmail(email) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { BANK_DOMAINS, isBankSender, parseAmount, parseDate, parseTime, normalizeText, flatten_, htmlToText_, emailText_, parseEmail, parseAccountAlert, parseCardAlert, parsePiraeusAlert, parseNbgAlert };
+  module.exports = { BANK_DOMAINS, isBankSender, parseAmount, parseDate, parseTime, normalizeText, flatten_, htmlToText_, emailText_, parseEmail, parseAccountAlert, parseCardAlert, parsePiraeusAlert, parseNbgAlert, unwrapForwarded, unwrapForwardedEmail };
 }

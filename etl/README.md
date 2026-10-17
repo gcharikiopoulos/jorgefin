@@ -69,6 +69,7 @@ A debit-card purchase triggers both alerts within seconds, and the same payment 
    | Property | Value |
    | --- | --- |
    | `NEON_PASSWORD` | the `etl_ingest` password, exactly as you set it (special characters are fine; the script encodes it) |
+   | `FORWARDERS` | optional: addresses that forward another person's bank alerts to this inbox, comma-separated. Only their emails that mention a bank domain are fetched, and only forwards whose original sender is a bank are parsed (as if the bank had sent them); everything else they send is skipped without being logged. Their cards or accounts must be in `public.accounts` (card number in `card_masks`, or `alert_mask`), or the alerts are rejected with "no account matches the mask". |
 
 4. **Check.** Run `testConnection()`; the log should say `Connected as etl_ingest`. Then run `dryRun()` and compare the logged transactions with the emails. It writes nothing. The first run looks back 400 days (`FIRST_RUN_DAYS` in `src/config.js`); later runs continue from the last one.
 
