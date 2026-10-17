@@ -97,7 +97,7 @@ export function PanelTransactions({ filter, showCategory = true, note, title = '
       </Stack>
       <Box component="table" sx={tableSx}>
         <thead><tr>
-          <SortTh field="txn_date" sort={sort} onSort={setSort} sx={{ ...thSx, width: 110 }}>Date</SortTh>
+          <SortTh field="txn_date" sort={sort} onSort={setSort} sx={{ ...thSx, width: 72 }}>Date</SortTh>
           <SortTh field="merchant_name" first="ASC" sort={sort} onSort={setSort} sx={thSx}>Merchant</SortTh>
           <SortTh field="amount" sort={sort} onSort={setSort} sx={{ ...thSx, width: 96, textAlign: 'right' }}>€</SortTh>
         </tr></thead>
@@ -108,17 +108,18 @@ export function PanelTransactions({ filter, showCategory = true, note, title = '
             return (
               <Box component="tr" key={r.id} onClick={() => setSelected(r)} tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') setSelected(r); }}
                 sx={{ cursor: 'pointer', '&:hover > td, &:focus-visible > td': { bgcolor: 'cockpit.panel2' }, outline: 'none' }}>
-                <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 13, color: 'cockpit.tx2', pl: 1.5 }}>{formatDayMonth(r.txn_date)} <Box component="span" sx={{ color: 'cockpit.tx3' }}>{formatTime(r.txn_at)}</Box></Box>
-                <Box component="td" sx={{ ...tdSx, height: extra || showCategory ? { xs: 52, md: 44 } : tdSx.height }} title={name}>
-                  <Box sx={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', ...(r.merchant_name ? {} : { fontWeight: 500, color: 'cockpit.tx2' }) }}>{name}</Box>
-                  {(showCategory || extra) && (
-                    <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75, minWidth: 0 }}>
-                      {showCategory && <CategoryTag categoryId={r.category_id} name={r.category} color={r.color} sx={{ height: 20, fontSize: 12.5 }} />}
-                      {extra && <Mono sx={{ fontSize: 12.5, color: 'cockpit.tx3', overflow: 'hidden', textOverflow: 'ellipsis' }}>{extra}</Mono>}
-                    </Stack>
-                  )}
+                {/* The panel is narrow on every screen: the date column keeps just the day,
+                    the time goes under the name, and long names wrap to a second line. */}
+                <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 13, color: 'cockpit.tx2', pl: 1.5, verticalAlign: 'top', pt: 1.25 }}>{formatDayMonth(r.txn_date)}</Box>
+                <Box component="td" sx={{ ...tdSx, whiteSpace: 'normal', py: 0.75 }} title={name}>
+                  <Box sx={{ fontWeight: 600, fontSize: 14, lineHeight: 1.3, overflowWrap: 'anywhere', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', ...(r.merchant_name ? {} : { fontWeight: 500, color: 'cockpit.tx2' }) }}>{name}</Box>
+                  <Stack direction="row" sx={{ alignItems: 'center', flexWrap: 'wrap', gap: '2px 8px', mt: 0.25, minWidth: 0 }}>
+                    {formatTime(r.txn_at) && <Mono sx={{ fontSize: 12.5, color: 'cockpit.tx3' }}>{formatTime(r.txn_at)}</Mono>}
+                    {showCategory && <CategoryTag categoryId={r.category_id} name={r.category} color={r.color} sx={{ height: 20, minHeight: 20, fontSize: 12.5 }} />}
+                    {extra && <Mono sx={{ fontSize: 12.5, color: 'cockpit.tx3', overflow: 'hidden', textOverflow: 'ellipsis' }}>{extra}</Mono>}
+                  </Stack>
                 </Box>
-                <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 14, fontWeight: 600, textAlign: 'right', pr: 1.5, color: r.direction === 'credit' ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(r.signed_amount)}</Box>
+                <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 14, fontWeight: 600, textAlign: 'right', pr: 1.5, verticalAlign: 'top', pt: 1.25, color: r.direction === 'credit' ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(r.signed_amount)}</Box>
               </Box>
             );
           })}

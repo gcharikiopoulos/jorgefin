@@ -24,9 +24,9 @@ const typing = (e) => /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.ta
 
 // ---------- filter rail ----------
 
-function RailSelect({ label, value, onChange, children, width = 150 }) {
+function RailSelect({ label, value, onChange, children, width = 150, sx }) {
   return (
-    <Stack direction="row" component="label" sx={{ alignItems: 'center', gap: 0.75, height: CONTROL, pl: 1.25, pr: 0.5, border: 1, borderColor: value ? 'primary.main' : 'cockpit.line2', borderRadius: '8px', bgcolor: 'cockpit.panel' }}>
+    <Stack direction="row" component="label" sx={{ alignItems: 'center', gap: 0.75, height: CONTROL, pl: 1.25, pr: 0.5, border: 1, borderColor: value ? 'primary.main' : 'cockpit.line2', borderRadius: '8px', bgcolor: 'cockpit.panel', flex: { xs: '1 1 auto', sm: 'none' }, minWidth: 0, ...sx }}>
       <Label>{label}</Label>
       <TextField
         select
@@ -64,7 +64,7 @@ function Segmented({ value, onChange, options, label }) {
     <Box role="group" aria-label={label} sx={{ display: 'inline-flex', border: 1, borderColor: 'cockpit.line2', borderRadius: '8px', overflow: 'hidden', height: CONTROL }}>
       {options.map(([v, text], i) => (
         <Box key={text} component="button" type="button" aria-pressed={value === v} onClick={() => onChange(v)}
-          sx={{ border: 0, borderLeft: i ? 1 : 0, borderColor: 'cockpit.line2', px: { xs: 2, sm: 1.5 }, font: 'inherit', fontSize: 14, fontWeight: value === v ? 600 : 400, cursor: 'pointer', bgcolor: value === v ? 'primary.main' : 'cockpit.panel', color: value === v ? '#fff' : 'cockpit.tx2' }}>
+          sx={{ flex: { xs: 1, sm: 'none' }, border: 0, borderLeft: i ? 1 : 0, borderColor: 'cockpit.line2', px: { xs: 2, sm: 1.5 }, font: 'inherit', fontSize: 14, fontWeight: value === v ? 600 : 400, cursor: 'pointer', bgcolor: value === v ? 'primary.main' : 'cockpit.panel', color: value === v ? '#fff' : 'cockpit.tx2' }}>
           {text}
         </Box>
       ))}
@@ -73,7 +73,7 @@ function Segmented({ value, onChange, options, label }) {
 }
 
 function FilterRail({ searchRef, rows }) {
-  const { filterValues, setFilters, total } = useListContext();
+  const { filterValues, setFilters, total, sort, setSort } = useListContext();
   const { data: months = [] } = useMonths();
   const { data: categories = [] } = useCategories();
   const set = (key, value) => {
@@ -89,15 +89,28 @@ function FilterRail({ searchRef, rows }) {
   const outflow = rows.filter((r) => r.direction !== 'credit').reduce((s, r) => s + num(r.signed_amount), 0);
   const uncatCount = rows.filter((r) => r.category_id == null).length;
   return (
-    <Stack direction="row" sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1, py: 1.25, px: 1.5, bgcolor: 'cockpit.panel', borderRadius: '14px 14px 0 0', borderBottom: 1, borderColor: 'cockpit.line' }}>
+    <Stack direction="row" sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1, py: 1.25, px: { xs: 1.25, sm: 1.5 }, bgcolor: 'cockpit.panel', borderRadius: '14px 14px 0 0', borderBottom: 1, borderColor: 'cockpit.line' }}>
       <SearchBox value={filterValues.q} onChange={(v) => set('q', v)} inputRef={searchRef} />
-      <Button variant="outlined" onClick={() => setOpen((o) => !o)} aria-expanded={open} sx={{ display: { xs: 'inline-flex', sm: 'none' }, height: 44, borderColor: active ? 'primary.main' : 'cockpit.line2', color: 'cockpit.tx' }}>
-        Filters{active ? ` · ${active}` : ''} {open ? '▴' : '▾'}
+      {/* Phones: search and the filter button on one line, the month on the next,
+          everything else behind the button. */}
+      <Button variant="outlined" onClick={() => setOpen((o) => !o)} aria-expanded={open} sx={{ display: { xs: 'inline-flex', sm: 'none' }, height: 44, flex: 'none', borderColor: active - (filterValues.month ? 1 : 0) > 0 ? 'primary.main' : 'cockpit.line2', color: 'cockpit.tx' }}>
+        Filters{active - (filterValues.month ? 1 : 0) > 0 ? ` · ${active - (filterValues.month ? 1 : 0)}` : ''} {open ? '▴' : '▾'}
       </Button>
-      <Box sx={{ display: { xs: open ? 'contents' : 'none', sm: 'contents' } }}>
-      <RailSelect label="Month" value={filterValues.month} onChange={(v) => set('month', v)} width={130}>
-        <MenuItem value="">All months</MenuItem>
-        {months.map((m) => <MenuItem key={m.month} value={m.month} sx={{ textTransform: 'capitalize' }}>{formatMonth(m.month)}</MenuItem>)}
+      <Box sx={{ width: { xs: '100%', sm: 'auto' }, display: 'flex' }}>
+        <RailSelect label="Month" value={filterValues.month} onChange={(v) => set('month', v)} width={130}>
+          <MenuItem value="">All months</MenuItem>
+          {months.map((m) => <MenuItem key={m.month} value={m.month} sx={{ textTransform: 'capitalize' }}>{formatMonth(m.month)}</MenuItem>)}
+        </RailSelect>
+      </Box>
+      <Box sx={{ display: { xs: open ? 'flex' : 'none', sm: 'contents' }, flexDirection: 'column', alignItems: 'stretch', gap: 1, width: '100%', '& > *': { width: { xs: '100%', sm: 'auto' }, flex: { xs: 'none', sm: undefined } } }}>
+      <RailSelect label="Sort" value={`${sort?.field || 'txn_date'}:${sort?.order || 'DESC'}`} onChange={(v) => { const [field, order] = v.split(':'); setSort({ field, order }); }} width={0}
+        sx={{ display: { xs: 'flex', sm: 'none' } }}>
+        <MenuItem value="txn_date:DESC">Newest first</MenuItem>
+        <MenuItem value="txn_date:ASC">Oldest first</MenuItem>
+        <MenuItem value="amount:DESC">Largest amount</MenuItem>
+        <MenuItem value="amount:ASC">Smallest amount</MenuItem>
+        <MenuItem value="merchant_name:ASC">Merchant A–Z</MenuItem>
+        <MenuItem value="category:ASC">Category A–Z</MenuItem>
       </RailSelect>
       <RailSelect label="Category" value={filterValues.category_id} onChange={(v) => set('category_id', v)} width={140}>
         <MenuItem value="">All</MenuItem>
@@ -131,7 +144,7 @@ function FilterRail({ searchRef, rows }) {
         </Box>
       )}
       <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'block' } }} />
-      <Mono sx={{ display: { xs: 'none', md: 'flex' }, gap: 2, fontSize: 13.5, color: 'cockpit.tx3', '& b': { fontWeight: 600 } }}>
+      <Mono sx={{ display: 'flex', flexWrap: 'wrap', width: { xs: '100%', md: 'auto' }, gap: { xs: '2px 12px', md: 2 }, fontSize: { xs: 13, md: 13.5 }, color: 'cockpit.tx3', '& b': { fontWeight: 600 } }}>
         <span><Box component="b" sx={{ color: 'cockpit.tx' }}>{rows.length < (total ?? 0) ? `${rows.length} of ${total}` : total ?? 0}</Box> rows</span>
         <span>In <Box component="b" sx={{ color: 'cockpit.pos' }}>{signedAmount(inflow)}</Box></span>
         <span>Out <Box component="b" sx={{ color: 'cockpit.tx' }}>{signedAmount(outflow)}</Box></span>
@@ -193,7 +206,7 @@ function Ledger() {
   const wide = useMediaQuery((t) => t.breakpoints.up('lg'));
   const md = useMediaQuery((t) => t.breakpoints.up('md'));
   const sm = useMediaQuery((t) => t.breakpoints.up('sm'));
-  const cols = md ? 7 : sm ? 5 : 3; // columns actually shown, for the full-width rows
+  const cols = md ? 7 : sm ? 5 : 2; // columns actually shown, for the full-width rows
   const [cursor, setCursor] = useState(-1);
   const [inspectId, setInspectId] = useState(null);
   const [selected, setSelected] = useState(() => new Set());
@@ -264,9 +277,10 @@ function Ledger() {
       <Box sx={{ minWidth: 0 }}>
         <FilterRail searchRef={searchRef} rows={rows} />
         {selected.size > 0 && <BulkBar rows={rows} selected={selected} onClear={() => setSelected(new Set())} />}
-        <Box sx={{ bgcolor: 'cockpit.panel', borderRadius: '0 0 14px 14px', overflow: 'hidden' }}>
+        <Box sx={{ bgcolor: 'cockpit.panel', borderRadius: '0 0 14px 14px', overflow: 'clip' }}>
           <Box component="table" sx={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' }}>
-            <thead>
+            {/* Phones sort from the Filters panel; the column heads would only crowd the rows. */}
+            <Box component="thead" sx={{ display: { xs: 'none', sm: 'table-header-group' } }}>
               <tr>
                 <Box component="th" sx={{ ...th, ...hideXs, width: 30 }}>
                   <Checkbox size="small" checked={allSelected} indeterminate={selected.size > 0 && !allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))} slotProps={{ input: { 'aria-label': 'Select all' } }} sx={{ p: 0 }} />
@@ -274,11 +288,16 @@ function Ledger() {
                 <SortTh field="txn_date" sort={sort} onSort={setSort} sx={{ ...th, ...hideXs, width: byDay ? 76 : 120 }}>{byDay ? 'Time' : 'Date'}</SortTh>
                 <SortTh field="merchant_name" first="ASC" sort={sort} onSort={setSort} sx={th}>Merchant · bank description</SortTh>
                 <SortTh field="txn_type" first="ASC" sort={sort} onSort={setSort} sx={{ ...th, ...hideSm, width: 130 }}>Type</SortTh>
-                <SortTh field="category" first="ASC" sort={sort} onSort={setSort} sx={{ ...th, width: { xs: 120, sm: 190 } }}>Category</SortTh>
+                <SortTh field="category" first="ASC" sort={sort} onSort={setSort} sx={{ ...th, width: { sm: 160, md: 190 } }}>Category</SortTh>
                 <SortTh field="source" first="ASC" sort={sort} onSort={setSort} sx={{ ...th, ...hideSm, width: 92 }}>Source</SortTh>
                 <SortTh field="amount" sort={sort} onSort={setSort} sx={{ ...th, width: { xs: 104, sm: 120 }, textAlign: 'right' }}>Amount €</SortTh>
               </tr>
-            </thead>
+            </Box>
+            {/* Fixed layout takes column widths from the first row; on phones the head is
+                hidden, so these set them instead. */}
+            <Box component="colgroup" sx={{ display: { xs: 'table-column-group', sm: 'none' } }}>
+              <col /><col style={{ width: 112 }} />
+            </Box>
             <tbody>
               {isPending && [0, 1, 2, 3, 4, 5].map((i) => <tr key={i}><Box component="td" colSpan={cols} sx={{ ...td, maxWidth: 'none' }}><Skeleton height={18} /></Box></tr>)}
               {!isPending && rows.length === 0 && (
@@ -312,14 +331,20 @@ function Ledger() {
                             <Checkbox size="small" checked={selected.has(r.id)} onChange={() => toggle(r.id)} slotProps={{ input: { 'aria-label': `Select ${name}` } }} sx={{ p: 0 }} />
                           </Box>
                           <Box component="td" sx={{ ...td, ...hideXs, ...monoSx, fontSize: 13.5, color: 'cockpit.tx3' }}>{byDay ? formatTime(r.txn_at) || '—' : `${formatDayMonth(r.txn_date)}${formatTime(r.txn_at) ? ` ${formatTime(r.txn_at)}` : ''}`}</Box>
-                          <Box component="td" sx={td} title={[name, extra].filter(Boolean).join(' · ')}>
-                            <Box component="span" sx={{ fontWeight: 600, ...(r.merchant_name ? {} : { fontWeight: 500, color: 'cockpit.tx2' }) }}>{name}</Box>
+                          <Box component="td" sx={{ ...td, whiteSpace: { xs: 'normal', sm: 'nowrap' }, py: { xs: 1, sm: 0 }, pl: { xs: 1.25, sm: 1.5 }, pr: { xs: 0.5, sm: 1.5 } }} title={[name, extra].filter(Boolean).join(' · ')}>
+                            <Box component="span" sx={{ fontWeight: 600, ...(r.merchant_name ? {} : { fontWeight: 500, color: 'cockpit.tx2' }), display: { xs: '-webkit-box', sm: 'inline' }, WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: { xs: 'hidden', sm: 'visible' }, overflowWrap: 'anywhere', lineHeight: 1.3 }}>{name}</Box>
                             {extra && <Mono sx={{ fontSize: 13, color: 'cockpit.tx3', ml: 1, display: { xs: 'none', sm: 'inline' } }}>{extra}</Mono>}
+                            {/* Phones: time, category and split on a second line. */}
+                            <Stack direction="row" sx={{ display: { xs: 'flex', sm: 'none' }, alignItems: 'center', flexWrap: 'wrap', gap: '2px 8px', mt: 0.5, fontSize: 13, color: 'cockpit.tx3' }}>
+                              {(byDay ? formatTime(r.txn_at) : formatDayMonth(r.txn_date)) && <Mono sx={{ fontSize: 13 }}>{byDay ? formatTime(r.txn_at) : formatDayMonth(r.txn_date)}</Mono>}
+                              <CategoryTag wrap categoryId={r.category_id} name={r.category} color={r.color} sx={{ px: 0.75, fontSize: 12.5, minHeight: 22 }} />
+                              {r.split_count > 0 && <span>Split · {r.split_count + (num(r.split_total) < num(r.amount) ? 1 : 0)}</span>}
+                            </Stack>
                           </Box>
                           <Box component="td" sx={{ ...td, ...hideSm, fontSize: 13.5, color: 'cockpit.tx2' }}>{txnTypeLabel(r.txn_type)}</Box>
-                          <Box component="td" sx={{ ...td, whiteSpace: 'normal', overflow: 'visible', py: 0.5, px: { xs: 0.75, sm: 1.5 } }}><CategoryTag wrap categoryId={r.category_id} name={r.category} color={r.color} />{r.split_count > 0 && <Box component="span" sx={{ display: 'block', fontSize: 12.5, color: 'cockpit.tx3', mt: 0.25 }}>Split · {r.split_count + (num(r.split_total) < num(r.amount) ? 1 : 0)} parts</Box>}</Box>
+                          <Box component="td" sx={{ ...td, ...hideXs, whiteSpace: 'normal', overflow: 'visible', py: 0.5, px: 1.5 }}><CategoryTag wrap categoryId={r.category_id} name={r.category} color={r.color} />{r.split_count > 0 && <Box component="span" sx={{ display: 'block', fontSize: 12.5, color: 'cockpit.tx3', mt: 0.25 }}>Split · {r.split_count + (num(r.split_total) < num(r.amount) ? 1 : 0)} parts</Box>}</Box>
                           <Box component="td" sx={{ ...td, ...hideSm, ...monoSx, fontSize: 13, color: 'cockpit.tx3' }}>{sourceShort(r.source)}</Box>
-                          <Box component="td" sx={{ ...td, ...monoSx, fontSize: 14, fontWeight: 600, textAlign: 'right', color: r.direction === 'credit' ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(r.signed_amount)}</Box>
+                          <Box component="td" sx={{ ...td, ...monoSx, fontSize: { xs: 15, sm: 14 }, fontWeight: 600, textAlign: 'right', verticalAlign: { xs: 'top', sm: 'middle' }, pt: { xs: 1, sm: 0 }, pl: { xs: 0.5, sm: 1.5 }, pr: { xs: 1.25, sm: 1.5 }, color: r.direction === 'credit' ? 'cockpit.pos' : 'cockpit.tx' }}>{signedAmount(r.signed_amount)}</Box>
                         </Box>
                       );
                     })}

@@ -9,7 +9,7 @@ import { ExplainList, useExplainItems } from './ExplainList.jsx';
 import { useMonths } from '../hooks.js';
 import { CategorizePanel } from '../components/CategorizePanel.jsx';
 import { SplitLayout } from '../components/SidePanel.jsx';
-import { hideBelowMd, hideBelowSm, isTyping, rowSx, tableSx, tdSx, thSx } from '../components/dense.js';
+import { hideBelowMd, hideBelowSm, isTyping, phoneLine, rowSx, tableSx, tdSx, thSx, wrapOnPhone } from '../components/dense.js';
 import { Label, Mono } from '../dashboard/parts.jsx';
 import { formatDayMonth, formatDate, sameText, signedAmount } from '../format.js';
 import { monoSx } from '../theme.js';
@@ -93,11 +93,11 @@ function ReviewBody() {
   return (
     <SplitLayout panel={selected && <CategorizePanel item={selected} onClose={() => setSelectedId(null)} onSaved={next} />} onClose={() => setSelectedId(null)}>
       <Box sx={{ bgcolor: 'cockpit.panel', borderRadius: '14px', overflow: 'hidden' }}>
-        <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5, flexWrap: 'wrap', minHeight: 56, px: 2, py: 1.25 }}>
+        <Stack direction="row" sx={{ alignItems: 'center', gap: { xs: 0.5, sm: 1.5 }, flexWrap: 'wrap', minHeight: 56, px: 2, py: 1.25 }}>
           <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75 }}>
             <Label component="h1" sx={{ color: 'cockpit.tx', m: 0, fontSize: 17, fontWeight: 600 }}>To review</Label>
           </Stack>
-          <Mono sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, fontSize: 14, color: 'cockpit.tx3', '& b': { fontWeight: 600, color: 'cockpit.tx' } }}>
+          <Mono sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: '2px 14px', sm: 2 }, width: { xs: '100%', sm: 'auto' }, fontSize: { xs: 13.5, sm: 14 }, color: 'cockpit.tx3', '& b': { fontWeight: 600, color: 'cockpit.tx' } }}>
             <span><b>{data.length}</b> {data.length === 1 ? 'description' : 'descriptions'}</span>
             <span><b>{txns}</b> transactions</span>
             <span>Out <b>{signedAmount(out)}</b></span>
@@ -109,10 +109,10 @@ function ReviewBody() {
         <Box component="table" sx={tableSx}>
           <thead><tr>
             <SortHead field="sample_description">Description</SortHead>
-            <SortHead field="txn_count" sx={{ width: 64, textAlign: 'right' }}>Count</SortHead>
+            <SortHead field="txn_count" sx={{ ...hideBelowSm, width: 64, textAlign: 'right' }}>Count</SortHead>
             <SortHead field="debit_count" sx={{ ...hideBelowSm, width: 96 }}>Out · in</SortHead>
             <SortHead field="last_seen" sx={{ ...hideBelowMd, width: 150 }}>Seen</SortHead>
-            <SortHead field="net_amount" sx={{ width: 100, textAlign: 'right' }}>Net €</SortHead>
+            <SortHead field="net_amount" sx={{ width: { xs: 96, sm: 100 }, textAlign: 'right' }}>Net €</SortHead>
           </tr></thead>
           <tbody>
             {isPending && [0, 1, 2, 3].map((i) => <tr key={i}><Box component="td" colSpan={5} sx={{ ...tdSx, maxWidth: 'none' }}><Skeleton height={18} /></Box></tr>)}
@@ -123,11 +123,14 @@ function ReviewBody() {
                 <Box component="tr" key={r.id} ref={(el) => { if (el) rowRefs.current.set(r.id, el); else rowRefs.current.delete(r.id); }}
                   onClick={() => (selectedId === r.id ? setSelectedId(null) : openAt(i))} aria-selected={selectedId === r.id}
                   sx={rowSx({ active: selectedId === r.id, cursor: i === cursor })}>
-                  <Box component="td" sx={tdSx} title={[r.sample_description, norm].filter(Boolean).join(' · ')}>
+                  <Box component="td" sx={{ ...tdSx, ...wrapOnPhone }} title={[r.sample_description, norm].filter(Boolean).join(' · ')}>
                     <Box component="span" sx={{ fontWeight: 600 }}>{r.sample_description || r.description_norm}</Box>
                     {norm && <Mono sx={{ fontSize: 13, color: 'cockpit.tx3', ml: 1, display: { xs: 'none', sm: 'inline' } }}>{norm}</Mono>}
+                    <Box sx={phoneLine}>
+                      {num(r.txn_count)} {num(r.txn_count) === 1 ? 'transaction' : 'transactions'} · {r.first_seen === r.last_seen ? formatDayMonth(r.first_seen) : `${formatDayMonth(r.first_seen)} – ${formatDayMonth(r.last_seen)}`}
+                    </Box>
                   </Box>
-                  <Box component="td" sx={{ ...tdSx, ...monoSx, textAlign: 'right', fontWeight: 600 }}>{num(r.txn_count)}</Box>
+                  <Box component="td" sx={{ ...tdSx, ...hideBelowSm, ...monoSx, textAlign: 'right', fontWeight: 600 }}>{num(r.txn_count)}</Box>
                   <Box component="td" sx={{ ...tdSx, ...hideBelowSm, ...monoSx, fontSize: 13.5, color: 'cockpit.tx3' }}>{outN} · {inN}</Box>
                   <Box component="td" sx={{ ...tdSx, ...hideBelowMd, ...monoSx, fontSize: 13.5, color: 'cockpit.tx2' }} title={`${formatDate(r.first_seen)} – ${formatDate(r.last_seen)}`}>
                     {r.first_seen === r.last_seen ? formatDayMonth(r.first_seen) : `${formatDayMonth(r.first_seen)} – ${formatDayMonth(r.last_seen)}`}
@@ -150,10 +153,10 @@ function ReviewTabs({ tab, onChange }) {
   const open = vague.filter((r) => r.open > 0).length;
   const tabs = [['uncat', 'Uncategorised', uncat], ['explain', 'Cash & other', open]];
   return (
-    <Box role="tablist" aria-label="Review" sx={{ display: 'flex', gap: 0.5, mt: 1.25, mb: 1.25, p: 0.5, bgcolor: 'cockpit.panel', borderRadius: '12px', width: 'fit-content', maxWidth: '100%' }}>
+    <Box role="tablist" aria-label="Review" sx={{ display: 'flex', gap: 0.5, mt: 1.25, mb: 1.25, p: 0.5, bgcolor: 'cockpit.panel', borderRadius: '12px', width: { xs: '100%', sm: 'fit-content' } }}>
       {tabs.map(([key, label, count]) => (
         <Box key={key} component="button" type="button" role="tab" aria-selected={tab === key} onClick={() => onChange(key)}
-          sx={{ font: 'inherit', fontSize: 15, fontWeight: tab === key ? 600 : 500, border: 0, cursor: 'pointer', borderRadius: '9px', px: 2, minHeight: 40, display: 'inline-flex', alignItems: 'center', gap: 1,
+          sx={{ font: 'inherit', fontSize: 15, fontWeight: tab === key ? 600 : 500, border: 0, cursor: 'pointer', borderRadius: '9px', px: 2, minHeight: 44, flex: { xs: 1, sm: 'none' }, justifyContent: 'center', display: 'inline-flex', alignItems: 'center', gap: 1,
             bgcolor: tab === key ? 'cockpit.hatch' : 'transparent', color: tab === key ? 'cockpit.accText' : 'cockpit.tx2' }}>
           {label}
           {count > 0 && <Box component="span" sx={{ fontSize: 12, fontWeight: 600, color: 'cockpit.warn', bgcolor: 'cockpit.warnBg', borderRadius: '999px', px: '7px', lineHeight: '18px' }}>{count}</Box>}

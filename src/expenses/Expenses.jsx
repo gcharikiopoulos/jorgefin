@@ -18,7 +18,7 @@ import { EmptyOrDenied, avg, thisMonth, transactionsLink } from '../dashboard/Da
 import { Card, Figure, MonthSwitch, TextLink } from '../dashboard/Overview.jsx';
 import { SortTh, sortRows } from '../components/SortTh.jsx';
 import { Segments } from '../components/PrefixField.jsx';
-import { hideBelowMd, hideBelowSm, tableSx, tdSx, thSx, CONTROL } from '../components/dense.js';
+import { hideBelowMd, hideBelowSm, phoneLine, tableSx, tdSx, thSx, wrapOnPhone, CONTROL } from '../components/dense.js';
 
 const WINDOW = 12; // months fetched and shown in the heatmap
 const AVERAGE_MONTHS = 6;
@@ -250,15 +250,15 @@ function Kpis({ total, prevTotal, avgTotal, debits, month, running, cats }) {
   const largest = debits.reduce((b, r) => (num(r.amount) > num(b?.amount ?? 0) ? r : b), null);
   let spentNote = null, spentColor;
   if (vsAvg != null && !running) {
-    spentNote = `${Math.abs(Math.round(vsAvg * 100))}% ${vsAvg <= 0 ? 'below' : 'above'} your ${AVERAGE_MONTHS}-month average (${euro(avgTotal)})`;
+    spentNote = `${Math.abs(Math.round(vsAvg * 100))}% ${vsAvg <= 0 ? 'below' : 'above'} the ${AVERAGE_MONTHS}-month average (${euro(avgTotal)})`;
     spentColor = vsAvg <= 0 ? 'cockpit.pos' : 'cockpit.neg';
   } else if (avgTotal != null) spentNote = `An average month is ${euro(avgTotal)}`;
   return (
     <Box component="section" aria-label="This month in figures" sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' }, gap: { xs: 1.5, md: 2 } }}>
       <Figure label={running ? 'Spent so far' : 'Spent'} value={euro(total)} note={spentNote} noteColor={spentColor} />
       <Figure label="Per day" value={euro(perDay)}
-        note={running ? `On course for about ${euro(perDay * daysIn(month))}` : prevTotal != null ? `Last month ${euro(prevTotal / daysIn(addMonths(month, -1)))} a day` : `${day} days`} />
-      <Figure label="Payments" value={String(debits.length)} note={debits.length ? `${euro(ticket)} on average · largest ${euro(largest?.amount)}${largest ? ` (${txnName(largest).name})` : ''}` : null} />
+        note={running ? `On course for ${euro(perDay * daysIn(month))}` : prevTotal != null ? `Last month ${euro(prevTotal / daysIn(addMonths(month, -1)))}` : `${day} days`} />
+      <Figure label="Payments" value={String(debits.length)} note={debits.length ? `Average ${euro(ticket)} · largest ${euro(largest?.amount)}${largest ? `, ${txnName(largest).name}` : ''}` : null} />
       <Figure label="Biggest change" value={up ? up.label : '—'} valueColor={up ? 'cockpit.neg' : undefined}
         note={[up && `+${euro(up.delta)} vs average`, down && down.delta < 0 && `${down.label} ${euro(down.delta)}`].filter(Boolean).join(' · ') || 'Nothing unusual'} />
     </Box>
@@ -302,15 +302,15 @@ function CategoryTable({ cats, total, prevTotal, avgTotal, winMonths, focus, onF
     return (
       <Box component="tr" key={`${sub ? 's' : 't'}-${c.key}`} onClick={() => onFocus(c, !sub)} aria-selected={focused}
         sx={{ cursor: 'pointer', '& > td': { bgcolor: focused ? 'cockpit.hatch' : 'transparent' }, '&:hover > td': { bgcolor: 'cockpit.panel2' } }}>
-        <Box component="td" sx={{ ...tdSx, pl: sub ? 5 : 0.5 }} title={c.label}>
-          <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+        <Box component="td" sx={{ ...tdSx, ...wrapOnPhone, pl: sub ? { xs: 3.5, sm: 5 } : 0.5 }} title={c.label}>
+          <Stack direction="row" sx={{ alignItems: 'center', gap: { xs: 0.5, sm: 0.75 }, minWidth: 0 }}>
             {!sub && (c.subs.length ? (
               <IconButton size="small" aria-label={isOpen ? `Hide ${c.label} subcategories` : `Show ${c.label} subcategories`} aria-expanded={isOpen}
                 onClick={(e) => { e.stopPropagation(); setOpen((s) => { const n = new Set(s); if (n.has(c.key)) n.delete(c.key); else n.add(c.key); return n; }); }}
                 sx={{ p: '4px' }}>
                 {isOpen ? <ExpandMoreIcon sx={{ fontSize: 18 }} /> : <ChevronRightIcon sx={{ fontSize: 18 }} />}
               </IconButton>
-            ) : <Box sx={{ width: 26, flex: 'none' }} />)}
+            ) : <Box sx={{ width: { xs: 8, sm: 26 }, flex: 'none' }} />)}
             <Box sx={{ width: sub ? 7 : 9, height: sub ? 7 : 9, borderRadius: '50%', bgcolor: color, flex: 'none', opacity: sub ? 0.7 : 1 }} />
             <Box component="span" sx={{ fontWeight: sub ? 400 : 600, overflow: 'hidden', textOverflow: 'ellipsis', fontStyle: c.key === 'none' ? 'italic' : undefined, color: c.key === 'none' ? 'cockpit.warn' : undefined }}>{c.label}</Box>
           </Stack>
@@ -333,13 +333,13 @@ function CategoryTable({ cats, total, prevTotal, avgTotal, winMonths, focus, onF
     <Box sx={{ mx: { xs: -1, md: -1.5 } }}>
       <Box component="table" sx={tableSx}>
         <thead><tr>
-          {head('label', 'Category', { pl: 4.5 }, 'ASC')}
-          {head('cur', 'Spent', { ...right, width: { xs: 92, sm: 104 } })}
+          {head('label', 'Category', { pl: { xs: 2.5, sm: 4.5 } }, 'ASC')}
+          {head('cur', 'Spent', { ...right, width: { xs: 88, sm: 104 } })}
           {head('share', 'Share', { ...hideBelowSm, width: '13%' })}
           {head('share', '%', { ...hideBelowMd, ...right, width: 64 })}
           {head('prev', 'Last month', { ...hideBelowSm, ...right, width: 112 })}
           {head('average', `${AVERAGE_MONTHS}-mo avg`, { ...hideBelowSm, ...right, width: 104 })}
-          {head('delta', 'vs avg', { ...right, width: { xs: 84, sm: 96 } })}
+          {head('delta', 'vs avg', { ...right, width: { xs: 76, sm: 96 } })}
           {head('count', 'Payments', { ...hideBelowMd, ...right, width: 96 })}
           {head('ticket', 'Avg payment', { ...hideBelowMd, ...right, width: 112 })}
           {head('trend', '12 months', { ...hideBelowMd, width: 120 })}
@@ -352,7 +352,7 @@ function CategoryTable({ cats, total, prevTotal, avgTotal, winMonths, focus, onF
             </Fragment>
           ))}
           <Box component="tr" sx={{ '& > td': { fontWeight: 600, borderBottom: 0 } }}>
-            <Box component="td" sx={{ ...tdSx, pl: 4.5 }}>Total</Box>
+            <Box component="td" sx={{ ...tdSx, pl: { xs: 2.5, sm: 4.5 } }}>Total</Box>
             <Box component="td" sx={{ ...tdSx, ...right }}>{amount(total)}</Box>
             <Box component="td" sx={{ ...tdSx, ...hideBelowSm }} />
             <Box component="td" sx={{ ...tdSx, ...hideBelowMd }} />
@@ -366,7 +366,7 @@ function CategoryTable({ cats, total, prevTotal, avgTotal, winMonths, focus, onF
         </tbody>
       </Box>
       <Typography sx={{ fontSize: 13, color: 'cockpit.tx3', mt: 1.5, px: { xs: 1, md: 1.5 } }}>
-        Click a row to see its merchants and payments below. Refunds and reimbursements count against the category they belong to.
+        Select a category to see its merchants and payments below. Refunds and reimbursements count against the category they belong to.
       </Typography>
     </Box>
   );
@@ -471,8 +471,9 @@ function Details({ rows, prevRows, nameOf, topOf, colorOf, accountName }) {
             <tbody>
               {sortRows(merchants, msort).slice(0, limit).map((m) => (
                 <tr key={m.name}>
-                  <Box component="td" sx={tdSx} title={m.name}>
+                  <Box component="td" sx={{ ...tdSx, ...wrapOnPhone }} title={m.name}>
                     <Box sx={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</Box>
+                    <Box sx={phoneLine}>{m.category} · {m.count} {m.count === 1 ? 'payment' : 'payments'}</Box>
                     <Box sx={{ height: 3, mt: '3px', borderRadius: 2, bgcolor: 'cockpit.panel2' }}><Box sx={{ height: 3, borderRadius: 2, width: `${Math.max(0, m.total / max) * 100}%`, bgcolor: colorOf(topOf(m.category_id)) }} /></Box>
                   </Box>
                   <Box component="td" sx={{ ...tdSx, ...hideBelowSm, color: 'cockpit.tx2' }}>{m.category}</Box>
@@ -487,7 +488,7 @@ function Details({ rows, prevRows, nameOf, topOf, colorOf, accountName }) {
         ) : (
           <Box component="table" sx={tableSx}>
             <thead><tr>
-              <SortTh field="txn_date" sort={tsort} onSort={setTsort} sx={{ ...thSx, width: { xs: 64, sm: 80 } }}>Date</SortTh>
+              <SortTh field="txn_date" sort={tsort} onSort={setTsort} sx={{ ...thSx, ...hideBelowSm, width: 80 }}>Date</SortTh>
               <SortTh field="name" first="ASC" sort={tsort} onSort={setTsort} sx={thSx}>Merchant</SortTh>
               <SortTh field="categoryName" first="ASC" sort={tsort} onSort={setTsort} sx={{ ...thSx, ...hideBelowSm, width: '22%' }}>Category</SortTh>
               <SortTh field="account" first="ASC" sort={tsort} onSort={setTsort} sx={{ ...thSx, ...hideBelowMd, width: '18%' }}>Account</SortTh>
@@ -496,10 +497,11 @@ function Details({ rows, prevRows, nameOf, topOf, colorOf, accountName }) {
             <tbody>
               {sortRows(tx, tsort).slice(0, limit).map((r) => (
                 <tr key={`${r.id}-${r.split_id ?? 0}`}>
-                  <Box component="td" sx={{ ...tdSx, color: 'cockpit.tx2' }}>{formatDayMonth(r.txn_date)}</Box>
-                  <Box component="td" sx={tdSx} title={[r.name, r.note].filter(Boolean).join(' · ')}>
+                  <Box component="td" sx={{ ...tdSx, ...hideBelowSm, color: 'cockpit.tx2' }}>{formatDayMonth(r.txn_date)}</Box>
+                  <Box component="td" sx={{ ...tdSx, ...wrapOnPhone }} title={[r.name, r.note].filter(Boolean).join(' · ')}>
                     <Box component="span" sx={{ fontWeight: 600 }}>{r.name}</Box>
                     {r.note && <Box component="span" sx={{ color: 'cockpit.tx3', ml: 1, display: { xs: 'none', sm: 'inline' } }}>{r.note}</Box>}
+                    <Box sx={phoneLine}>{formatDayMonth(r.txn_date)} · {r.categoryName}{r.note ? ` · ${r.note}` : ''}</Box>
                   </Box>
                   <Box component="td" sx={{ ...tdSx, ...hideBelowSm, color: 'cockpit.tx2' }}>{r.categoryName}</Box>
                   <Box component="td" sx={{ ...tdSx, ...hideBelowMd, color: 'cockpit.tx3' }}>{r.account}</Box>

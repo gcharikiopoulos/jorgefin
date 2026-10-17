@@ -15,7 +15,7 @@ import { BalanceChart, EmptyOrDenied, balanceSeries, avg, rollup, thisMonth, tra
 const SHOWN_CATEGORIES = 9;
 const AVERAGE_MONTHS = 6;
 
-export const cardSx = { bgcolor: 'cockpit.panel', borderRadius: '14px', p: { xs: 2.5, md: 3 }, minWidth: 0 };
+export const cardSx = { bgcolor: 'cockpit.panel', borderRadius: '14px', p: { xs: 2, sm: 2.5, md: 3 }, minWidth: 0 };
 const figureSx = { fontVariantNumeric: 'tabular-nums' };
 const euro = (v) => `${amount(v)} €`;
 
@@ -47,12 +47,14 @@ export function MonthSwitch({ months, index, onChange }) {
   );
 }
 
-export function Figure({ label, value, note, valueColor, noteColor }) {
+// A headline number. Two sit side by side on a phone, so the value shrinks to fit
+// half the width and the note stays short.
+export function Figure({ label, value, note, valueColor, noteColor, sx }) {
   return (
-    <Box sx={{ ...cardSx, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-      <Typography sx={{ fontSize: 14, color: 'cockpit.tx3' }}>{label}</Typography>
-      <Typography sx={{ ...figureSx, fontSize: { xs: 21, sm: 28, md: 32 }, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.15, whiteSpace: 'nowrap', color: valueColor }}>{value}</Typography>
-      {note && <Typography sx={{ fontSize: 14, color: noteColor || 'cockpit.tx3' }}>{note}</Typography>}
+    <Box sx={{ ...cardSx, display: 'flex', flexDirection: 'column', gap: { xs: 0.5, sm: 0.75 }, ...sx }}>
+      <Typography sx={{ fontSize: { xs: 13, sm: 14 }, color: 'cockpit.tx3', lineHeight: 1.3 }}>{label}</Typography>
+      <Typography sx={{ ...figureSx, fontSize: { xs: 20, sm: 28, md: 32 }, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.15, whiteSpace: 'nowrap', color: valueColor }}>{value}</Typography>
+      {note && <Typography sx={{ fontSize: { xs: 12.5, sm: 14 }, lineHeight: 1.35, color: noteColor || 'cockpit.tx3' }}>{note}</Typography>}
     </Box>
   );
 }
@@ -68,10 +70,10 @@ function Figures({ months, index }) {
   const earlier = months.slice(index + 1, index + 1 + AVERAGE_MONTHS).map((r) => num(r.expenses));
   const average = earlier.length ? avg(earlier) : null;
   let spentNote = null, spentColor;
-  if (average && running) spentNote = `By day ${new Date().getDate()} · an average month is ${euro(average)}`;
+  if (average && running) spentNote = `By day ${new Date().getDate()} · average month ${euro(average)}`;
   else if (average) {
     const d = (spent - average) / average;
-    spentNote = `${Math.abs(Math.round(d * 100))}% ${d <= 0 ? 'below' : 'above'} your average (${euro(average)})`;
+    spentNote = `${Math.abs(Math.round(d * 100))}% ${d <= 0 ? 'below' : 'above'} average (${euro(average)})`;
     spentColor = d <= 0 ? 'cockpit.pos' : 'cockpit.neg';
   }
   const closed = running ? months[index + 1] : m;
@@ -79,20 +81,23 @@ function Figures({ months, index }) {
   const b = (balance.data || []).find((r) => r.month === month);
   const parts = b ? [['Cash', b.cash], ['Savings', b.savings], ['Investments', b.investment]] : [];
   return (
-    <Box component="section" aria-label="This month" sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 2 }}>
+    <Box component="section" aria-label="This month" sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }, gap: { xs: 1.5, sm: 2 } }}>
       <Figure label={running ? 'Spent so far this month' : 'Spent'} value={euro(spent)} note={spentNote} noteColor={spentColor} />
       {closed && (
         <Figure label={running ? `Net last month (${formatShortMonth(closed.month)})` : 'Net'} value={`${signedAmount(net)} €`} valueColor={net < 0 ? 'cockpit.neg' : 'cockpit.pos'}
-          note={`Income ${euro(closed.income)} − spent ${euro(closed.expenses)}`} />
+          note={`In ${euro(closed.income)} · out ${euro(closed.expenses)}`} />
       )}
-      <Box sx={{ ...cardSx, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-        <Typography sx={{ fontSize: 14, color: 'cockpit.tx3' }}>Total balance</Typography>
+      {/* Full width on phones and tablets; the parts sit in a row under the total. */}
+      <Box sx={{ ...cardSx, gridColumn: { xs: '1 / -1', lg: 'auto' }, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+        <Typography sx={{ fontSize: { xs: 13, sm: 14 }, color: 'cockpit.tx3' }}>Total balance</Typography>
         <Typography sx={{ ...figureSx, fontSize: { xs: 24, sm: 28, md: 32 }, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.15, whiteSpace: 'nowrap' }}>{b ? euro(b.balance) : '—'}</Typography>
-        {parts.map(([label, v]) => (
-          <Stack key={label} direction="row" sx={{ justifyContent: 'space-between', fontSize: 14, color: 'cockpit.tx3' }}>
-            <span>{label}</span><Box component="span" sx={{ ...figureSx, color: 'cockpit.tx2' }}>{euro(v)}</Box>
-          </Stack>
-        ))}
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(3, minmax(0, 1fr))', lg: 'minmax(0, 1fr)' }, gap: { xs: 1, lg: 0.75 }, mt: 0.5 }}>
+          {parts.map(([label, v]) => (
+            <Box key={label} sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, justifyContent: 'space-between', fontSize: { xs: 13, sm: 14 }, color: 'cockpit.tx3', minWidth: 0 }}>
+              <span>{label}</span><Box component="span" sx={{ ...figureSx, color: 'cockpit.tx2', fontWeight: { xs: 600, lg: 400 }, whiteSpace: 'nowrap' }}>{euro(v)}</Box>
+            </Box>
+          ))}
+        </Box>
       </Box>
     </Box>
   );
@@ -101,8 +106,8 @@ function Figures({ months, index }) {
 function ReviewBanner({ count, total }) {
   if (!count) return null;
   return (
-    <Box component={RouterLink} to="/review" sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '8px 16px', px: 2.5, py: 1.75, borderRadius: '12px', bgcolor: 'cockpit.warnBg', border: 1, borderColor: 'cockpit.warn', color: 'cockpit.warn', textDecoration: 'none', fontSize: 15 }}>
-      <span><b>{count} transaction{count === 1 ? '' : 's'}</b> this month {count === 1 ? 'has' : 'have'} no category ({euro(total)}), so the totals are incomplete.</span>
+    <Box component={RouterLink} to="/review" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, px: { xs: 2, sm: 2.5 }, py: { xs: 1.25, sm: 1.75 }, minHeight: 48, borderRadius: '12px', bgcolor: 'cockpit.warnBg', border: 1, borderColor: 'cockpit.warn', color: 'cockpit.warn', textDecoration: 'none', fontSize: { xs: 14, sm: 15 } }}>
+      <span><b>{count} uncategorised</b> ({euro(total)})<Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}> this month, so the totals are incomplete</Box></span>
       <Box component="span" sx={{ fontWeight: 600 }}>Review ›</Box>
     </Box>
   );
@@ -124,16 +129,15 @@ function WhereItWent({ month, spent }) {
   return (
     <Box>
       {rows.map((r) => (
+        // Name, amount and share on one line, the bar across the full width under them.
         <Box key={r.key} component={RouterLink} to={r.to}
-          sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 6.5em 3em', alignItems: 'center', columnGap: 2, rowGap: 1, py: 1.5, px: 1, mx: -1, borderRadius: '8px', color: 'cockpit.tx', textDecoration: 'none', minHeight: 44, '&:hover': { bgcolor: 'cockpit.panel2' } }}>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography sx={{ fontSize: 15, mb: 1, color: r.uncat ? 'cockpit.warn' : undefined, fontStyle: r.uncat ? 'italic' : undefined, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.label}</Typography>
-            <Box sx={{ height: 6, borderRadius: 3, bgcolor: 'cockpit.panel2' }}>
-              <Box sx={{ height: 6, borderRadius: 3, width: `${Math.max(2, (r.total / max) * 100)}%`, bgcolor: r.uncat ? 'cockpit.warn' : r.rest ? 'cockpit.line2' : 'primary.main' }} />
-            </Box>
+          sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto 2.75em', gridTemplateAreas: '"name amount share" "bar bar bar"', alignItems: 'baseline', columnGap: 1.5, rowGap: 0.75, py: { xs: 1, md: 1.25 }, px: 1, mx: -1, borderRadius: '8px', color: 'cockpit.tx', textDecoration: 'none', minHeight: 44, '&:hover': { bgcolor: 'cockpit.panel2' } }}>
+          <Typography sx={{ gridArea: 'name', fontSize: 15, minWidth: 0, color: r.uncat ? 'cockpit.warn' : undefined, fontStyle: r.uncat ? 'italic' : undefined, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.label}</Typography>
+          <Typography sx={{ gridArea: 'amount', ...figureSx, fontSize: 15, fontWeight: 600, textAlign: 'right', whiteSpace: 'nowrap' }}>{euro(r.total)}</Typography>
+          <Typography sx={{ gridArea: 'share', ...figureSx, fontSize: 13, color: 'cockpit.tx3', textAlign: 'right' }}>{spent ? `${Math.round((r.total / spent) * 100)}%` : ''}</Typography>
+          <Box sx={{ gridArea: 'bar', height: 5, borderRadius: 3, bgcolor: 'cockpit.panel2' }}>
+            <Box sx={{ height: 5, borderRadius: 3, width: `${Math.max(2, (r.total / max) * 100)}%`, bgcolor: r.uncat ? 'cockpit.warn' : r.rest ? 'cockpit.line2' : 'primary.main' }} />
           </Box>
-          <Typography sx={{ ...figureSx, fontSize: 15, fontWeight: 600, textAlign: 'right' }}>{euro(r.total)}</Typography>
-          <Typography sx={{ ...figureSx, fontSize: 13, color: 'cockpit.tx3', textAlign: 'right' }}>{spent ? `${Math.round((r.total / spent) * 100)}%` : ''}</Typography>
         </Box>
       ))}
     </Box>
@@ -205,10 +209,10 @@ export function Overview() {
   const uncatRows = (txQuery.data || []).filter((r) => r.category_id == null);
   const uncatTotal = uncatRows.reduce((s, r) => s + Math.abs(num(r.signed_amount)), 0);
   return (
-    <Box sx={{ maxWidth: 1200, width: '100%', mx: 'auto', pt: { xs: 1.5, md: 3 }, pb: 4, display: 'flex', flexDirection: 'column', gap: { xs: 2, md: 3 } }}>
+    <Box sx={{ maxWidth: 1200, width: '100%', mx: 'auto', pt: { xs: 1, md: 3 }, pb: 4, display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
       <Title title="Overview" />
-      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
-        <Typography component="h1" sx={{ fontSize: 22, fontWeight: 600 }}>Overview</Typography>
+      <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+        <Typography component="h1" sx={{ fontSize: { xs: 20, sm: 22 }, fontWeight: 600 }}>Overview</Typography>
         <MonthSwitch months={months} index={index} onChange={setIndex} />
       </Stack>
 

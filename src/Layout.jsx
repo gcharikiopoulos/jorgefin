@@ -75,7 +75,7 @@ const tabSx = {
 function TopBar() {
   const reviewCount = useReviewCount();
   const online = useOnline();
-  const small = useMediaQuery((t) => t.breakpoints.down('sm'));
+  const small = useMediaQuery((t) => t.breakpoints.down('md'));
   return (
     <MuiAppBar position="fixed" elevation={0} color="inherit" sx={{ height: 48, bgcolor: 'cockpit.panel', borderBottom: 1, borderColor: 'cockpit.line', backgroundImage: 'none' }}>
       <Stack direction="row" sx={{ height: 48, alignItems: 'center', gap: 1.5, px: 1.5, '& .MuiIconButton-root': { p: { xs: '10px', sm: '8px' } } }}>
@@ -149,9 +149,9 @@ function StatusBar() {
 
 export function Layout({ children }) {
   useSectionKeys();
-  const small = useMediaQuery((t) => t.breakpoints.down('sm'));
+  const small = useMediaQuery((t) => t.breakpoints.down('md'));
   return (
-    <RaLayout appBar={TopBar} sidebar={() => null} sx={{ minWidth: 0, '& .RaLayout-content': { pb: small ? '76px' : 0, minHeight: 'calc(100vh - 48px)', minWidth: 0 } }}>
+    <RaLayout appBar={TopBar} sidebar={() => null} sx={{ minWidth: 0, '& .RaLayout-content': { pb: small ? 'calc(72px + env(safe-area-inset-bottom))' : 0, px: { xs: 1, sm: 2 }, minHeight: 'calc(100vh - 48px)', minWidth: 0 } }}>
       <OfflineBanner />
       {children}
       <StatusBar />
