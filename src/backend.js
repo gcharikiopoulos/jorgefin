@@ -13,6 +13,16 @@ export class AuthError extends Error {
   }
 }
 
+// Rejects when a promise has not settled in time, so a hung network call shows
+// an error instead of an endless loading screen.
+export function withTimeout(promise, ms, message) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), ms); }),
+  ]).finally(() => clearTimeout(timer));
+}
+
 let clientPromise = null;
 let mockPromise = null;
 
@@ -47,7 +57,10 @@ export async function getFreshClient() {
   const client = await getClient();
   if (!sessionCheck || Date.now() - sessionCheckedAt > SESSION_CHECK_MS) {
     sessionCheckedAt = Date.now();
-    sessionCheck = client.auth.getSession().catch((err) => console.error('Session refresh failed', err));
+    // A renewal that hangs must not hold every request: give up after a while and
+    // send the request anyway (a stale token then fails and is retried).
+    sessionCheck = withTimeout(client.auth.getSession(), 8000, 'Session refresh timed out')
+      .catch((err) => console.error('Session refresh failed', err));
   }
   await sessionCheck;
   return client;
