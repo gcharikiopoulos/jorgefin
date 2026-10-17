@@ -43,8 +43,12 @@ function process_({ dryRun }) {
     const since = config.lastRunAt
       ? new Date(new Date(config.lastRunAt).getTime() - OVERLAP_HOURS * 3600e3)
       : new Date(startedAt.getTime() - FIRST_RUN_DAYS * 86400e3);
+    // Bank mail, plus forwards of it: a forwarder's mail is only fetched when it
+    // mentions a bank domain, and only forwards of bank emails are parsed (below).
+    const direct = `from:(${BANK_DOMAINS.join(' OR ')})`;
+    const forwarded = config.forwarders.length ? `(from:(${config.forwarders.join(' OR ')}) (${BANK_DOMAINS.join(' OR ')}))` : '';
     const query = [
-      `from:(${BANK_DOMAINS.join(' OR ')})`,
+      forwarded ? `(${direct} OR ${forwarded})` : direct,
       `after:${Math.floor(since.getTime() / 1000)}`,
     ].join(' ');
 
@@ -52,13 +56,20 @@ function process_({ dryRun }) {
     const rows = [];
     const unrecognised = [];
     let messages = 0;
+    let forwards = 0;
+    let skippedForwards = 0;
 
     for (const thread of threads) {
       for (const message of thread.getMessages()) {
         if (message.getDate() < since) continue;
-        if (!isBankSender(message.getFrom())) continue; // Gmail's from: also matches display names
+        const email = toEmail_(message, config);
+        if (email === 'skip-forward') {
+          skippedForwards += 1; // a forwarder's own mail: neither parsed nor logged
+          continue;
+        }
+        if (!email) continue;
         messages += 1;
-        const email = { id: message.getId(), from: message.getFrom(), subject: message.getSubject(), body: message.getPlainBody(), html: message.getBody(), date: message.getDate() };
+        if (email.forwardedBy) forwards += 1;
         const result = parseEmail(email);
         if (result) rows.push(...result.transactions);
         else {
@@ -71,7 +82,8 @@ function process_({ dryRun }) {
     }
 
     Logger.log('Query: %s', query);
-    Logger.log('Emails: %s, transactions parsed: %s, not recognised: %s', messages, rows.length, unrecognised.length);
+    Logger.log('Emails: %s (forwarded: %s), transactions parsed: %s, not recognised: %s', messages, forwards, rows.length, unrecognised.length);
+    if (skippedForwards) Logger.log('Skipped %s forwarded emails that are not bank alerts', skippedForwards);
     unrecognised.forEach((u) => Logger.log('Not recognised: %s', u));
 
     if (dryRun) {
@@ -91,6 +103,21 @@ function process_({ dryRun }) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// The email to parse for a Gmail message: bank mail as is; a forwarder's copy of
+// bank mail unwrapped to its original sender (so the parsers treat it as the bank's
+// own); 'skip-forward' for anything else a forwarder sent; null for anyone else.
+// Gmail's from: also matches display names, hence the address checks here.
+function toEmail_(message, config) {
+  const from = message.getFrom();
+  const base = { id: message.getId(), subject: message.getSubject(), body: message.getPlainBody(), html: message.getBody(), date: message.getDate() };
+  if (isBankSender(from)) return { ...base, from };
+  const address = from.toLowerCase();
+  if (!config.forwarders.some((f) => address.includes(f))) return null;
+  const original = unwrapForwardedEmail(base);
+  if (!original || !isBankSender(original.from)) return 'skip-forward';
+  return { ...base, from: original.from, subject: original.subject || base.subject, forwardedBy: address };
 }
 
 // Clears the cursor so the next run looks back FIRST_RUN_DAYS again (already-loaded emails are skipped by the database).

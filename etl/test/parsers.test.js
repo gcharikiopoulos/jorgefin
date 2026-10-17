@@ -1,7 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const f = require('./fixtures.js');
-const { parseEmail } = require('../src/parsers.js');
+const { parseEmail, unwrapForwardedEmail } = require('../src/parsers.js');
+
+// What Code.js does with a forwarder's message: parse it as if it came from the original sender.
+const asOriginal = (email) => ({ ...email, from: unwrapForwardedEmail(email).from });
 
 const one = (email) => {
   const result = parseEmail(email);
@@ -130,4 +133,27 @@ test('a bank alert from a new address at the same bank still parses', () => {
   assert.equal(parseEmail(email).transactions.length, 1);
   const card = { ...f.cardPurchase, from: 'other@alpha.gr' };
   assert.equal(parseEmail(card).type, 'card_alert');
+});
+
+test('forwarded emails: the original sender and subject come from the header block', () => {
+  assert.deepEqual(unwrapForwardedEmail(f.fwdCard), { from: 'ebanking@alpha.gr', subject: 'Alpha Alerts' });
+  assert.deepEqual(unwrapForwardedEmail(f.fwdAccount), { from: 'alerts@alpha.gr', subject: 'Alpha Bank – Υπηρεσία Alpha Alerts. ΛΟΓΑΡΙΑΣΜΟΣ ***999' });
+  assert.deepEqual(unwrapForwardedEmail(f.fwdHtmlOnly), { from: 'ebanking@alpha.gr', subject: 'Alpha Alerts' });
+  assert.equal(unwrapForwardedEmail(f.fwdPersonal).from, 'teacher@example.org');
+  assert.equal(unwrapForwardedEmail(f.cardPurchase), null);
+});
+
+test('forwarded card and account alerts parse like the originals', () => {
+  const card = one(asOriginal(f.fwdCard));
+  assert.deepEqual([card.alert_type, card.account_mask, card.txn_date, card.txn_time, card.amount, card.description],
+    ['card_alert', '************1111', '2026-01-12', '08:46', '3.98', 'EXAMPLE KIOSK GREECE']);
+  assert.equal(card.message_id, 'msg-f1');
+  const html = one(asOriginal(f.fwdHtmlOnly));
+  assert.deepEqual([html.amount, html.description], ['3.98', 'EXAMPLE KIOSK GREECE']);
+  const account = one(asOriginal(f.fwdAccount));
+  assert.deepEqual([account.alert_type, account.account_mask, account.amount, account.direction], ['account_alert', '***123', '7.20', 'debit']);
+});
+
+test('a forwarder\'s copy is not parsed under the forwarder\'s own address', () => {
+  assert.equal(parseEmail(f.fwdCard), null);
 });

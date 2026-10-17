@@ -2,6 +2,9 @@
 //   NEON_PASSWORD           password of the etl_ingest role (any characters; encoded here)
 //   NEON_CONNECTION_STRING  alternative to NEON_PASSWORD: a full postgresql:// URL with the
 //                           password already URL-encoded. NEON_PASSWORD wins if both are set.
+//   FORWARDERS              optional, comma-separated addresses that forward someone else's
+//                           bank alerts to this inbox. Only their forwards of bank emails
+//                           are read; anything else they send is skipped without being logged.
 //
 // Progress is kept in the script property LAST_RUN_AT (set by the script). Gmail
 // groups these alerts into long threads and labels apply to whole threads, so
@@ -24,8 +27,10 @@ function getConfig() {
     ? `postgresql://${NEON_USER}:${encodeURIComponent(password.trim())}@${NEON_HOST}/${NEON_DATABASE}?sslmode=require`
     : (props.getProperty('NEON_CONNECTION_STRING') || '').trim();
   if (!connectionString) throw new Error('Set the script property NEON_PASSWORD (or NEON_CONNECTION_STRING)');
+  const forwarders = (props.getProperty('FORWARDERS') || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
   return {
     connectionString,
+    forwarders,
     lastRunAt: props.getProperty('LAST_RUN_AT'),
   };
 }
