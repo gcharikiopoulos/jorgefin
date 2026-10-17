@@ -14,6 +14,10 @@ export const tdSx = { px: 1.5, height: ROW, fontSize: 14, borderBottom: 1, borde
 export const tableSx = { width: '100%', borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed' };
 export const hideBelowMd = { display: { xs: 'none', md: 'table-cell' } };
 export const hideBelowSm = { display: { xs: 'none', sm: 'table-cell' } };
+// Phones: the main cell wraps instead of cutting the name off, and carries the
+// details of the columns hidden there on a second line (phoneLine).
+export const wrapOnPhone = { whiteSpace: { xs: 'normal', sm: 'nowrap' }, overflowWrap: { xs: 'break-word', sm: 'normal' }, py: { xs: 1, sm: 0 }, lineHeight: 1.3 };
+export const phoneLine = { display: { xs: 'block', sm: 'none' }, fontSize: 13, fontWeight: 400, color: 'cockpit.tx3', mt: 0.25, whiteSpace: 'normal' };
 
 // Rows that react to hover, selection and the keyboard cursor.
 export const rowSx = ({ active, cursor } = {}) => ({

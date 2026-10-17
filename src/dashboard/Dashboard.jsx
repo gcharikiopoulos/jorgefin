@@ -14,7 +14,7 @@ import {
 import { SortTh, sortRows } from '../components/SortTh.jsx';
 import { monoSx } from '../theme.js';
 import { CategoryTag } from '../components/CategoryTag.jsx';
-import { CONTROL, ROW } from '../components/dense.js';
+import { CONTROL, ROW, hideBelowSm, phoneLine, wrapOnPhone } from '../components/dense.js';
 
 const MAX_CATEGORIES = 10;
 export const transactionsLink = (filter) => `/transactions?filter=${encodeURIComponent(JSON.stringify(filter))}`;
@@ -115,7 +115,7 @@ function KpiRow({ months, index, txQuery }) {
         deltaText={deltaText(d(net, prev && num(prev.net)))} deltaColor={tone(d(net, prev && num(prev.net)))} />
       <KpiTile label="Savings rate" value={income ? percent(rate(m), 1).replace(/\s?%$/, '') : '—'} unit="%" series={series(rate)} format={(v) => percent(v, 1)}
         deltaText={rateDelta == null ? null : `${rateDelta >= 0 ? '▲ +' : '▼ −'}${(Math.abs(rateDelta) * 100).toFixed(1).replace('.', ',')}pp`} deltaColor={tone(rateDelta)} />
-      <KpiTile label="Avg daily spend" value={amount(perDay(m))} unit="€/d" series={series(perDay)} format={amount}
+      <KpiTile label="Daily spend" value={amount(perDay(m))} unit="€/d" series={series(perDay)} format={amount}
         deltaText={deltaText(d(perDay(m), prev && perDay(prev)))} deltaColor={tone(d(perDay(m), prev && perDay(prev)), false)} />
       <KpiTile
         label="To review"
@@ -125,15 +125,15 @@ function KpiRow({ months, index, txQuery }) {
         footer={(
           <>
             <Mono sx={{ fontSize: 12.5, color: 'cockpit.tx2', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
-              {uncat ? `${uncat - uncatIn} out · ${uncatIn} in · ${new Set(uncatRows.map((r) => r.description)).size} descriptions` : 'Every transaction has a category'}
+              {uncat ? `${uncat - uncatIn} out · ${uncatIn} in` : 'Every transaction has a category'}
             </Mono>
             <Box sx={{ display: 'flex', height: 4, width: '100%', bgcolor: 'cockpit.line', borderRadius: '1px', overflow: 'hidden' }}>
               <Box sx={{ width: `${done * 100}%`, bgcolor: 'cockpit.pos' }} />
               <Box sx={{ width: `${(1 - done) * 100}%`, bgcolor: 'cockpit.warn' }} />
             </Box>
-            <Mono sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: 12.5, color: 'cockpit.tx3', borderTop: 1, borderColor: 'cockpit.line', pt: 0.5 }}>
-              <span>Done {total - uncat} of {total} · {percent(done, 0)}</span>
-              {uncat > 0 && <span>Open ›</span>}
+            <Mono sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, width: '100%', fontSize: 12.5, color: 'cockpit.tx3', borderTop: 1, borderColor: 'cockpit.line', pt: 0.5, whiteSpace: 'nowrap' }}>
+              <span>{total - uncat}/{total} done</span>
+              {uncat > 0 && <Box component="span" sx={{ color: 'primary.main', fontWeight: 600 }}>Open ›</Box>}
             </Mono>
           </>
         )}
@@ -173,7 +173,17 @@ export function BalanceChart({ month, legend = true }) {
         const X = (i) => (i / n) * 1000, Y = (v) => 6 + (1 - (v - lo) / (hi - lo || 1)) * 168;
         const line = (key) => 'M' + w.map((r, i) => `${X(i).toFixed(1)} ${Y(r[key]).toFixed(1)}`).join(' L');
         const last = w[w.length - 1];
+        const legendItems = series.map((s) => <span key={s.key}><i style={{ background: s.color }} />{s.label} <b>{amount(last[s.key])}</b></span>);
+        const legendSx = { fontSize: 12.5, '& i': { display: 'inline-block', width: 10, height: 2, verticalAlign: 'middle', mr: 0.5 } };
         return (
+          <>
+          {/* Phones: the legend sits above the chart, where it cannot cover the lines. */}
+          {legend && (
+            <Mono component="div" sx={{ ...legendSx, display: { xs: 'flex', sm: 'none' }, flexWrap: 'wrap', gap: '2px 12px', px: 1.5, pt: 0.5 }}>
+              {legendItems}
+              <Box component="span" sx={{ color: 'cockpit.tx2' }}>Total {amount(last.balance)}</Box>
+            </Mono>
+          )}
           <Box sx={{ position: 'relative', height: 180, m: '12px 54px 24px 12px' }}>
             <svg viewBox="0 0 1000 180" preserveAspectRatio="none" style={svgBox} aria-hidden>
               <path d={ticks.map((t) => `M0 ${Y(lo + t).toFixed(1)} H1000`).join(' ')} stroke={c.line} fill="none" vectorEffect="non-scaling-stroke" />
@@ -186,16 +196,17 @@ export function BalanceChart({ month, legend = true }) {
                   <Box key={s.key} title={`${formatMonth(r.month)} · cash ${amount(r.cash)} € · savings ${amount(r.savings)} € · investments ${amount(r.investment)} € · total ${amount(r.balance)} €`}
                     sx={{ position: 'absolute', left: `${X(i) / 10}%`, top: `${(Y(r[s.key]) / 180) * 100}%`, width: 5, height: 5, m: '-3px 0 0 -3px', borderRadius: '50%', bgcolor: 'cockpit.panel', border: 1, borderColor: s.color }} />
                 ))}
-                <Mono sx={{ position: 'absolute', left: `${X(i) / 10}%`, bottom: -18, transform: 'translateX(-50%)', fontSize: 12.5, color: i === w.length - 1 ? 'cockpit.tx' : 'cockpit.tx3', whiteSpace: 'nowrap' }}>{formatShortMonth(r.month)}</Mono>
+                <Mono sx={{ position: 'absolute', left: `${X(i) / 10}%`, bottom: -18, transform: i === 0 ? 'translateX(-12px)' : 'translateX(-50%)', fontSize: 12.5, color: i === w.length - 1 ? 'cockpit.tx' : 'cockpit.tx3', whiteSpace: 'nowrap', display: { xs: i === 0 || (w.length - 1 - i) % 3 === 0 ? 'block' : 'none', sm: 'block' } }}>{formatShortMonth(r.month)}</Mono>
               </Box>
             ))}
             {legend && (
-            <Mono component="div" sx={{ position: 'absolute', left: 4, top: 0, display: 'flex', flexDirection: 'column', gap: '1px', fontSize: 12.5, bgcolor: 'cockpit.panel', px: 0.75, py: 0.5, borderRadius: '6px', '& i': { display: 'inline-block', width: 10, height: 2, verticalAlign: 'middle', mr: 0.5 } }}>
-              {series.map((s) => <span key={s.key}><i style={{ background: s.color }} />{s.label} <b>{amount(last[s.key])}</b></span>)}
+            <Mono component="div" sx={{ ...legendSx, position: 'absolute', left: 4, top: 0, display: { xs: 'none', sm: 'flex' }, flexDirection: 'column', gap: '1px', bgcolor: 'cockpit.panel', px: 0.75, py: 0.5, borderRadius: '6px' }}>
+              {legendItems}
               <Box component="span" sx={{ color: 'cockpit.tx2' }}>Total {amount(last.balance)}</Box>
             </Mono>
             )}
           </Box>
+          </>
         );
       }}
     </QueryState>
@@ -431,7 +442,7 @@ function YearToDate({ months, index }) {
           </Stack>
         )}
       </Stack>
-      <Box sx={{ position: 'relative', height: { xs: 200, md: 230 }, m: '14px 60px 26px 12px' }} onMouseLeave={() => setHover(null)}>
+      <Box sx={{ position: 'relative', height: { xs: 180, md: 230 }, m: { xs: '10px 52px 26px 12px', sm: '14px 60px 26px 12px' } }} onMouseLeave={() => setHover(null)}>
         <svg viewBox="0 0 1000 200" preserveAspectRatio="none" style={svgBox} aria-hidden>
           <path d={ticks.map((t) => `M0 ${Y(t).toFixed(1)} H1000`).join(' ')} stroke={c.line} fill="none" vectorEffect="non-scaling-stroke" />
           {pieces.map((p, i) => <path key={i} d={'M' + p.pts.map(([x, v]) => `${x.toFixed(1)} ${Y(v).toFixed(1)}`).join(' L') + ' Z'} fill={p.sign ? c.pos : c.neg} opacity={0.14} />)}
@@ -452,7 +463,7 @@ function YearToDate({ months, index }) {
           const other = arr === income ? expenses : income;
           const above = arr[last + 1] >= other[last + 1];
           return (
-            <Mono key={label} sx={{ position: 'absolute', left: `${X(last + 1) / 10}%`, top: pct(Y(arr[last + 1])), transform: `translate(${last + 1 >= 10 ? 'calc(-100% - 10px)' : '8px'}, ${above ? '-120%' : '20%'})`, fontSize: 12.5, fontWeight: 600, color: 'cockpit.tx', whiteSpace: 'nowrap', pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Mono key={label} sx={{ position: 'absolute', left: `${X(last + 1) / 10}%`, top: pct(Y(arr[last + 1])), transform: `translate(${last + 1 >= 10 ? 'calc(-100% - 10px)' : '8px'}, ${above ? '-120%' : '20%'})`, fontSize: 12.5, fontWeight: 600, color: 'cockpit.tx', whiteSpace: 'nowrap', pointerEvents: 'none', display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.5 }}>
               <Box component="span" sx={{ width: 10, height: 2, bgcolor: col }} />{label} {amount(arr[last + 1])}
             </Mono>
           );
@@ -514,7 +525,7 @@ function CategoryTable({ months, index }) {
                 <tr>
                   <SortTh field="label" first="ASC" sort={sort} onSort={setSort} sx={{ ...head, width: { xs: 'auto', sm: '26%' } }}>Category</SortTh>
                   <SortTh field="total" sort={sort} onSort={setSort} sx={{ ...head, display: { xs: 'none', sm: 'table-cell' } }}>Share</SortTh>
-                  <SortTh field="total" sort={sort} onSort={setSort} sx={{ ...head, width: { xs: 80, sm: '14%' }, textAlign: 'right' }}>Amount</SortTh>
+                  <SortTh field="total" sort={sort} onSort={setSort} sx={{ ...head, width: { xs: 92, sm: '14%' }, textAlign: 'right' }}>Amount</SortTh>
                   <SortTh field="total" sort={sort} onSort={setSort} sx={{ ...head, width: '8%', textAlign: 'right', display: { xs: 'none', sm: 'table-cell' } }}>%</SortTh>
                   <SortTh field="trend" sort={sort} onSort={setSort} sx={{ ...head, width: '11%', display: { xs: 'none', sm: 'table-cell' } }}>6 mo</SortTh>
                   <SortTh field="dPrev" sort={sort} onSort={setSort} sx={{ ...head, width: { xs: 80, sm: '11%' }, textAlign: 'right' }}>vs prev</SortTh>
@@ -636,10 +647,10 @@ function TopMerchants({ query }) {
         return (
           <Box component="table" sx={tableSx}>
             <thead><tr>
-              <SortTh field="rank" first="ASC" sort={sort} onSort={setSort} sx={{ ...thSx, width: 52 }}>#</SortTh>
+              <SortTh field="rank" first="ASC" sort={sort} onSort={setSort} sx={{ ...thSx, ...hideBelowSm, width: 52 }}>#</SortTh>
               <SortTh field="name" first="ASC" sort={sort} onSort={setSort} sx={thSx}>Merchant</SortTh>
-              <SortTh field="count" sort={sort} onSort={setSort} sx={{ ...thSx, width: 56, textAlign: 'right' }}>N</SortTh>
-              <SortTh field="avg" sort={sort} onSort={setSort} sx={{ ...thSx, width: 84, textAlign: 'right' }}>Avg</SortTh>
+              <SortTh field="count" sort={sort} onSort={setSort} sx={{ ...thSx, ...hideBelowSm, width: 56, textAlign: 'right' }}>N</SortTh>
+              <SortTh field="avg" sort={sort} onSort={setSort} sx={{ ...thSx, ...hideBelowSm, width: 84, textAlign: 'right' }}>Avg</SortTh>
               <SortTh field="total" sort={sort} onSort={setSort} sx={{ ...thSx, width: 96, textAlign: 'right' }}>Total</SortTh>
             </tr></thead>
             <tbody>
@@ -647,17 +658,18 @@ function TopMerchants({ query }) {
                 const color = categoryColor(t.category_id, categories, theme.palette.mode, t.color);
                 return (
                   <tr key={t.name}>
-                    <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12.5, color: 'cockpit.tx3' }}>{t.rank}</Box>
-                    <Box component="td" sx={tdSx} title={t.name}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+                    <Box component="td" sx={{ ...tdSx, ...hideBelowSm, ...monoSx, fontSize: 12.5, color: 'cockpit.tx3' }}>{t.rank}</Box>
+                    <Box component="td" sx={{ ...tdSx, ...wrapOnPhone }} title={t.name}>
+                      <Box sx={{ display: 'flex', alignItems: { xs: 'baseline', sm: 'center' }, gap: 0.75, minWidth: 0 }}>
                         <Box sx={{ width: 6, height: 6, borderRadius: '1px', flex: 'none', bgcolor: color }} />
-                        <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</Box>
-                        {t.category && <Mono sx={{ fontSize: 12.5, color: 'cockpit.tx3', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.category}</Mono>}
+                        <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: { xs: 600, sm: 400 } }}>{t.name}</Box>
+                        {t.category && <Mono sx={{ fontSize: 12.5, color: 'cockpit.tx3', overflow: 'hidden', textOverflow: 'ellipsis', display: { xs: 'none', sm: 'inline' } }}>{t.category}</Mono>}
                       </Box>
-                      <Box sx={{ height: 2, mt: '2px', bgcolor: 'cockpit.line' }}><Box sx={{ height: 2, width: `${(t.total / max) * 100}%`, bgcolor: color }} /></Box>
+                      <Box sx={{ ...phoneLine, pl: '14px' }}>{t.category ? `${t.category} · ` : ''}{t.count} × {amount(t.avg)}</Box>
+                      <Box sx={{ height: 2, mt: '4px', bgcolor: 'cockpit.line' }}><Box sx={{ height: 2, width: `${(t.total / max) * 100}%`, bgcolor: color }} /></Box>
                     </Box>
-                    <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12, textAlign: 'right', color: 'cockpit.tx3' }}>{t.count}</Box>
-                    <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12, textAlign: 'right', color: 'cockpit.tx2' }}>{amount(t.avg)}</Box>
+                    <Box component="td" sx={{ ...tdSx, ...hideBelowSm, ...monoSx, fontSize: 12, textAlign: 'right', color: 'cockpit.tx3' }}>{t.count}</Box>
+                    <Box component="td" sx={{ ...tdSx, ...hideBelowSm, ...monoSx, fontSize: 12, textAlign: 'right', color: 'cockpit.tx2' }}>{amount(t.avg)}</Box>
                     <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 12.5, textAlign: 'right', fontWeight: 600 }}>{amount(t.total)}</Box>
                   </tr>
                 );

@@ -18,7 +18,7 @@ import MoreIcon from '@mui/icons-material/MoreHoriz';
 import { CategoryDot, CategorySelect } from '../components/CategorySelect.jsx';
 import { CATEGORY_SWATCHES, amount, categoryColor, categoryTree, formatShortMonth, percent } from '../format.js';
 import { useCategories, useMonths, useRefreshAfterWrite } from '../hooks.js';
-import { hideBelowMd, hideBelowSm, isTyping, rowSx, tableSx, tdSx, thSx } from '../components/dense.js';
+import { hideBelowMd, hideBelowSm, isTyping, phoneLine, rowSx, tableSx, tdSx, thSx, wrapOnPhone } from '../components/dense.js';
 import { Label, Mono } from '../dashboard/parts.jsx';
 import { SortTh, sortRows } from '../components/SortTh.jsx';
 import { monoSx } from '../theme.js';
@@ -262,11 +262,14 @@ function CategoryRow({ category, child, first, last, usage, totals, kindTotal, m
   return (
     <Box component="tr" onClick={() => count && onOpen(category)} aria-selected={selected}
       sx={{ ...rowSx({ active: selected }), cursor: count ? 'pointer' : 'default', '&:hover .row-actions': { opacity: 1 } }}>
-      <Box component="td" sx={{ ...tdSx, pl: child ? 4 : 1.5 }} title={category.name}>
-        <Stack direction="row" sx={{ alignItems: 'center', gap: 0.875, minWidth: 0 }}>
+      <Box component="td" sx={{ ...tdSx, ...wrapOnPhone, pl: child ? 4 : 1.5 }} title={category.name}>
+        <Stack direction="row" sx={{ alignItems: { xs: 'flex-start', sm: 'center' }, gap: 0.875, minWidth: 0 }}>
           {child && <Box component="span" sx={{ ...monoSx, color: 'cockpit.line2', ml: -1.5, fontSize: 13 }}>└</Box>}
-          <Box sx={{ width: child ? 8 : 10, height: child ? 8 : 10, borderRadius: '50%', bgcolor: color, flex: 'none', opacity: child && !category.color ? 0.7 : 1 }} />
-          <Box component="span" sx={{ fontWeight: child ? 400 : 600, fontSize: child ? 13.5 : 14, overflow: 'hidden', textOverflow: 'ellipsis' }}>{category.name}</Box>
+          <Box sx={{ width: child ? 8 : 10, height: child ? 8 : 10, mt: { xs: '5px', sm: 0 }, borderRadius: '50%', bgcolor: color, flex: 'none', opacity: child && !category.color ? 0.7 : 1 }} />
+          <Box sx={{ minWidth: 0 }}>
+            <Box component="span" sx={{ fontWeight: child ? 400 : 600, fontSize: child ? 13.5 : 14, overflow: 'hidden', textOverflow: 'ellipsis' }}>{category.name}</Box>
+            <Box sx={phoneLine}>{count ? `${count} ${count === 1 ? 'transaction' : 'transactions'}` : 'Not used yet'}{total && kindTotal ? ` · ${percent(total / kindTotal, 0)}` : ''}</Box>
+          </Box>
         </Stack>
       </Box>
       <Box component="td" sx={{ ...tdSx, ...hideBelowSm }}>
@@ -274,7 +277,7 @@ function CategoryRow({ category, child, first, last, usage, totals, kindTotal, m
       </Box>
       <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 14, textAlign: 'right', fontWeight: child ? 400 : 600, color: total ? 'cockpit.tx' : 'cockpit.tx3' }}>{total ? amount(total) : '—'}</Box>
       <Box component="td" sx={{ ...tdSx, ...hideBelowMd, ...monoSx, fontSize: 13, textAlign: 'right', color: 'cockpit.tx3' }}>{total && kindTotal ? percent(total / kindTotal, 0) : ''}</Box>
-      <Box component="td" sx={{ ...tdSx, ...monoSx, fontSize: 13.5, textAlign: 'right', color: selected ? 'cockpit.accText' : count ? 'cockpit.tx2' : 'cockpit.tx3' }} title={ids.length > 1 ? 'Including subcategories' : undefined}>{count || '—'}</Box>
+      <Box component="td" sx={{ ...tdSx, ...hideBelowSm, ...monoSx, fontSize: 13.5, textAlign: 'right', color: selected ? 'cockpit.accText' : count ? 'cockpit.tx2' : 'cockpit.tx3' }} title={ids.length > 1 ? 'Including subcategories' : undefined}>{count || '—'}</Box>
       <Box component="td" sx={{ ...tdSx, textAlign: 'right', pr: 0.75 }} onClick={(e) => e.stopPropagation()}>
         <IconButton aria-label={`Actions for ${category.name}`} onClick={(e) => setMenu(e.currentTarget)} sx={{ display: { xs: 'inline-flex', md: 'none' }, p: '10px' }}><MoreIcon sx={{ fontSize: 20 }} /></IconButton>
         <Menu anchorEl={menu} open={!!menu} onClose={() => setMenu(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
@@ -368,9 +371,10 @@ export function CategoryList() {
     <Box sx={{ pt: 1.25, pb: 2 }}>
       <Title title="Categories" />
       <SplitLayout panel={open && <CategoryPanel category={open} onClose={() => setOpenId(null)} />} onClose={() => setOpenId(null)}>
-        <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5, flexWrap: 'wrap', minHeight: 56, px: 2, py: 1, mb: 2, bgcolor: 'cockpit.panel', borderRadius: '14px' }}>
+        <Stack direction="row" sx={{ alignItems: 'center', gap: { xs: 1, sm: 1.5 }, flexWrap: 'wrap', minHeight: 56, px: 2, py: 1.25, mb: { xs: 1.5, sm: 2 }, bgcolor: 'cockpit.panel', borderRadius: '14px' }}>
           <Label component="h1" sx={{ color: 'cockpit.tx', m: 0, fontSize: 17, fontWeight: 600 }}>Categories</Label>
-          <Mono sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, fontSize: 14, color: 'cockpit.tx3', '& b': { fontWeight: 600, color: 'cockpit.tx' } }}>
+          {/* Phones: title and button on the first line, the counts under them. */}
+          <Mono sx={{ order: { xs: 3, sm: 0 }, width: { xs: '100%', sm: 'auto' }, display: 'flex', flexWrap: 'wrap', gap: { xs: '2px 14px', sm: 2 }, fontSize: { xs: 13.5, sm: 14 }, color: 'cockpit.tx3', '& b': { fontWeight: 600, color: 'cockpit.tx' } }}>
             <span><b>{categories.length - subCount}</b> top-level</span>
             <span><b>{subCount}</b> sub</span>
             {month && <span>Figures for <b>{monthLabel}</b></span>}
@@ -406,9 +410,9 @@ export function CategoryList() {
                   <thead><tr>
                     <SortTh field="name" first="ASC" sort={catSort} onSort={onCatSort} sx={thSx}>Name</SortTh>
                     <SortTh field="share" sort={catSort} onSort={onCatSort} sx={{ ...thSx, ...hideBelowSm, width: '22%' }}>Share in {monthLabel}</SortTh>
-                    <SortTh field="total" sort={catSort} onSort={onCatSort} sx={{ ...thSx, width: 104, textAlign: 'right' }}>{monthLabel} €</SortTh>
+                    <SortTh field="total" sort={catSort} onSort={onCatSort} sx={{ ...thSx, width: { xs: 96, sm: 104 }, textAlign: 'right' }}>{monthLabel} €</SortTh>
                     <SortTh field="pct" sort={catSort} onSort={onCatSort} sx={{ ...thSx, ...hideBelowMd, width: 72, textAlign: 'right' }}>%</SortTh>
-                    <SortTh field="count" sort={catSort} onSort={onCatSort} sx={{ ...thSx, width: 92, textAlign: 'right' }} title="All transactions, every month">Count</SortTh>
+                    <SortTh field="count" sort={catSort} onSort={onCatSort} sx={{ ...thSx, ...hideBelowSm, width: 92, textAlign: 'right' }} title="All transactions, every month">Count</SortTh>
                     <Box component="th" sx={{ ...thSx, width: { xs: 52, md: 150 } }}><Box component="span" sx={visuallyHidden}>Actions</Box></Box>
                   </tr></thead>
                   <tbody>

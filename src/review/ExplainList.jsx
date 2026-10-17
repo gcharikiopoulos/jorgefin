@@ -9,7 +9,7 @@ import { useDataProvider } from 'react-admin';
 import { Inspector } from '../transactions/Inspector.jsx';
 import { SplitLayout } from '../components/SidePanel.jsx';
 import { SortTh, sortRows } from '../components/SortTh.jsx';
-import { hideBelowMd, hideBelowSm, rowSx, tableSx, tdSx, thSx } from '../components/dense.js';
+import { hideBelowMd, hideBelowSm, phoneLine, rowSx, tableSx, tdSx, thSx, wrapOnPhone } from '../components/dense.js';
 import { useCategories } from '../hooks.js';
 import { amount, formatDayMonth, txnName } from '../format.js';
 import { num } from '../backend.js';
@@ -69,15 +69,16 @@ export function ExplainList() {
               {isPending ? 'Loading…' : <><b>{rows.length}</b> payments · <b>{amount(openTotal)} €</b> not explained yet. Open one to split it into what it was for.</>}
             </Typography>
           </Box>
+          {/* Phones: category and period share a line, the toggle sits under them. */}
           <TextField select size="small" fullWidth={false} label="Category" value={category} onChange={(e) => setCategory(e.target.value)}
-            slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }} sx={{ m: 0, width: { xs: '100%', sm: 190 } }}>
+            slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }} sx={{ m: 0, flex: { xs: '1 1 140px', sm: 'none' }, minWidth: 0, width: { sm: 190 } }}>
             <MenuItem value="">All</MenuItem>
             {categories.map((c) => <MenuItem key={c.id} value={String(c.id)}>{c.name}</MenuItem>)}
           </TextField>
-          <TextField select size="small" fullWidth={false} label="Period" value={period} onChange={(e) => setPeriod(Number(e.target.value))} sx={{ m: 0, width: { xs: '100%', sm: 160 } }}>
+          <TextField select size="small" fullWidth={false} label="Period" value={period} onChange={(e) => setPeriod(Number(e.target.value))} sx={{ m: 0, flex: { xs: '1 1 140px', sm: 'none' }, minWidth: 0, width: { sm: 160 } }}>
             {PERIODS.map(([v, l]) => <MenuItem key={v} value={v}>{l}</MenuItem>)}
           </TextField>
-          <Button variant={onlyOpen ? 'contained' : 'outlined'} onClick={() => setOnlyOpen((v) => !v)} aria-pressed={onlyOpen}>
+          <Button variant={onlyOpen ? 'contained' : 'outlined'} onClick={() => setOnlyOpen((v) => !v)} aria-pressed={onlyOpen} sx={{ width: { xs: '100%', sm: 'auto' } }}>
             {onlyOpen ? 'Not yet split' : 'All, including split'}
           </Button>
         </Stack>
@@ -86,20 +87,21 @@ export function ExplainList() {
         ) : (
           <Box component="table" sx={tableSx}>
             <thead><tr>
-              <SortTh field="txn_date" sort={sort} onSort={setSort} sx={{ ...thSx, width: { xs: 64, sm: 80 } }}>Date</SortTh>
+              <SortTh field="txn_date" sort={sort} onSort={setSort} sx={{ ...thSx, ...hideBelowSm, width: 80 }}>Date</SortTh>
               <SortTh field="name" first="ASC" sort={sort} onSort={setSort} sx={thSx}>Description</SortTh>
               <SortTh field="category" first="ASC" sort={sort} onSort={setSort} sx={{ ...thSx, ...hideBelowSm, width: '20%' }}>Category</SortTh>
               <SortTh field="amount" sort={sort} onSort={setSort} sx={{ ...thSx, ...hideBelowMd, ...right, width: 104 }}>Amount</SortTh>
-              <SortTh field="open" sort={sort} onSort={setSort} sx={{ ...thSx, ...right, width: { xs: 104, sm: 128 } }}>Not explained</SortTh>
+              <SortTh field="open" sort={sort} onSort={setSort} sx={{ ...thSx, ...right, width: { xs: 96, sm: 128 } }} title="Not explained yet">Open €</SortTh>
             </tr></thead>
             <tbody>
               {shown.map((r) => (
                 <Box component="tr" key={r.id} onClick={() => setSelectedId((id) => (id === r.id ? null : r.id))} aria-selected={selectedId === r.id} sx={rowSx({ active: selectedId === r.id })}>
-                  <Box component="td" sx={{ ...tdSx, color: 'cockpit.tx2' }}>{formatDayMonth(r.txn_date)}</Box>
-                  <Box component="td" sx={tdSx} title={[r.name, r.note].filter(Boolean).join(' · ')}>
+                  <Box component="td" sx={{ ...tdSx, ...hideBelowSm, color: 'cockpit.tx2' }}>{formatDayMonth(r.txn_date)}</Box>
+                  <Box component="td" sx={{ ...tdSx, ...wrapOnPhone }} title={[r.name, r.note].filter(Boolean).join(' · ')}>
                     <Box component="span" sx={{ fontWeight: 600 }}>{r.name}</Box>
                     {r.note && <Box component="span" sx={{ color: 'cockpit.tx3', ml: 1, display: { xs: 'none', sm: 'inline' } }}>{r.note}</Box>}
-                    {r.split_count > 0 && <Box component="span" sx={{ color: 'cockpit.tx3', ml: 1 }}>· split</Box>}
+                    {r.split_count > 0 && <Box component="span" sx={{ color: 'cockpit.tx3', ml: 1, display: { xs: 'none', sm: 'inline' } }}>· split</Box>}
+                    <Box sx={phoneLine}>{formatDayMonth(r.txn_date)} · {r.category}{r.split_count > 0 ? ` · ${amount(r.amount)} split` : ''}</Box>
                   </Box>
                   <Box component="td" sx={{ ...tdSx, ...hideBelowSm, color: 'cockpit.tx2' }}>{r.category}</Box>
                   <Box component="td" sx={{ ...tdSx, ...hideBelowMd, ...right, color: 'cockpit.tx2' }}>{amount(r.amount)}</Box>

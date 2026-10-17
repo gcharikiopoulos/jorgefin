@@ -91,9 +91,9 @@ export function KpiTile({ label, value, unit, valueColor, deltaText, deltaColor,
       sx={{ font: 'inherit', color: 'inherit', textAlign: 'left', bgcolor: 'cockpit.panel', border: 0, borderRadius: '14px', p: { xs: '14px 16px', md: '16px 20px' }, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0, cursor: onClick ? 'pointer' : 'default', '&:hover': onClick ? { bgcolor: 'cockpit.panel2' } : undefined }}
     >
       <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75, width: '100%' }}>
-        <Label>{label}</Label>
+        <Label sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</Label>
         <Box sx={{ flexGrow: 1 }} />
-        {deltaText && <Mono sx={{ fontSize: 11.5, fontWeight: 600, color: deltaColor }} title="Change from previous month">{deltaText}</Mono>}
+        {deltaText && <Mono sx={{ fontSize: 11.5, fontWeight: 600, color: deltaColor, whiteSpace: 'nowrap', flex: 'none' }} title="Change from previous month">{deltaText}</Mono>}
       </Stack>
       <Stack direction="row" sx={{ alignItems: 'flex-end', gap: 1, width: '100%' }}>
         <Box sx={{ flexGrow: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
