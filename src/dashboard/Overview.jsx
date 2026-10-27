@@ -220,7 +220,12 @@ export function Overview() {
       <Figures months={months} index={index} />
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 2, md: 3 }, alignItems: 'flex-start' }}>
-        <Card title="Where the money went" link={<TextLink to={`/expenses?month=${month}`}>Month details ›</TextLink>} sx={{ flex: '999 1 520px' }}>
+        <Card title="Where the money went" link={(
+          <Stack direction="row" sx={{ gap: 2 }}>
+            {months[index + 1] && <TextLink to={`/expenses?compare=${months[index + 1].month},${month}`}>vs {formatShortMonth(months[index + 1].month)}</TextLink>}
+            <TextLink to={`/expenses?month=${month}`}>Details ›</TextLink>
+          </Stack>
+        )} sx={{ flex: '999 1 520px' }}>
           <WhereItWent month={month} spent={num(m.expenses)} />
         </Card>
         <Box sx={{ flex: '1 1 340px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: { xs: 2, md: 3 } }}>
