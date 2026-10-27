@@ -18,6 +18,7 @@ import { EmptyOrDenied, avg, thisMonth, transactionsLink } from '../dashboard/Da
 import { Card, Figure, MonthSwitch, TextLink } from '../dashboard/Overview.jsx';
 import { SortTh, sortRows } from '../components/SortTh.jsx';
 import { Segments } from '../components/PrefixField.jsx';
+import { AVG, ComparePage, ViewSwitch, comparePair } from './Compare.jsx';
 import { hideBelowMd, hideBelowSm, phoneLine, tableSx, tdSx, thSx, wrapOnPhone, CONTROL } from '../components/dense.js';
 
 const WINDOW = 12; // months fetched and shown in the heatmap
@@ -45,6 +46,10 @@ export function Expenses() {
   const months = monthsQuery.data || [];
   if (monthsQuery.isPending) return <Box sx={{ pt: 2 }}><Skeleton variant="rounded" height={420} /></Box>;
   if (!months.length) return <EmptyOrDenied />;
+  if (params.has('compare')) {
+    const { a, b } = comparePair(params.get('compare'), months);
+    return <ComparePage months={months} a={a} b={b} onChange={(x, y) => setParams({ compare: `${x},${y}` }, { replace: true })} onMonthView={() => setParams({ month: b })} />;
+  }
   let index = months.findIndex((m) => m.month === params.get('month'));
   if (index < 0) index = 0;
   const onMonth = (i) => {
@@ -52,7 +57,12 @@ export function Expenses() {
     next.set('month', months[i].month);
     setParams(next, { replace: true });
   };
-  return <ExpensesPage months={months} index={index} onMonth={onMonth} />;
+  const onCompare = () => {
+    const month = months[index].month;
+    const prev = months.find((m) => m.month === addMonths(month, -1));
+    setParams({ compare: `${prev ? prev.month : AVG},${month}` });
+  };
+  return <ExpensesPage months={months} index={index} onMonth={onMonth} onCompare={onCompare} />;
 }
 
 // ---------- data shaping ----------
@@ -79,7 +89,7 @@ function finish(node, { month, prevMonth, avgMonths, total, winMonths }) {
 
 // ---------- page ----------
 
-function ExpensesPage({ months, index, onMonth }) {
+function ExpensesPage({ months, index, onMonth, onCompare }) {
   const theme = useTheme();
   const dataProvider = useDataProvider();
   const month = months[index].month;
@@ -153,7 +163,10 @@ function ExpensesPage({ months, index, onMonth }) {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, md: 3 }, pt: { xs: 1.5, md: 2 }, pb: 4 }}>
       <Title title="Expenses" />
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-        <Typography component="h1" sx={{ fontSize: { xs: 22, md: 26 }, fontWeight: 600 }}>Expenses</Typography>
+        <Typography component="h1" sx={{ fontSize: { xs: 20, md: 26 }, fontWeight: 600 }}>Expenses</Typography>
+        <ViewSwitch value="month" onChange={onCompare} />
+      </Stack>
+      <Stack direction="row" sx={{ justifyContent: { xs: 'center', sm: 'flex-start' }, mt: -1 }}>
         <MonthSwitch months={months} index={index} onChange={onMonth} />
       </Stack>
 
