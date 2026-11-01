@@ -146,67 +146,87 @@ function KpiRow({ months, index, txQuery }) {
 
 const svgBox = { position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' };
 
-// Three lines: day-to-day cash, savings, and investments (at what went in).
-// Colour and label of each balance line, shared with the Overview's legend.
+// Four lines: the grand total (heavier, with a soft fill under it) and its three
+// parts, day-to-day cash, savings and investments (at what went in). The legend
+// sits under the chart, never over the lines, and shows the month you point at
+// (or tap on a phone); otherwise the latest month.
+// Colour and label of each balance line, shared with the Overview.
 export const balanceSeries = (c, mode) => [
+  { key: 'balance', label: 'Total', color: c.tx, total: true },
   { key: 'savings', label: 'Savings', color: c.pos },
   { key: 'investment', label: 'Investments', color: seriesColor(6, mode) },
   { key: 'cash', label: 'Cash', color: c.acc },
 ];
 
-export function BalanceChart({ month, legend = true }) {
+export function BalanceChart({ month }) {
   const { cockpit: c, mode } = useTheme().palette;
   const query = useBalance();
+  const [hover, setHover] = useState(null);
   return (
     <QueryState query={query} height={180} empty="No balance on record yet.">
       {(rows) => {
         const upTo = rows.filter((r) => r.month <= month);
         const w = (upTo.length ? upTo : rows).slice(-12);
         const series = balanceSeries(c, mode).filter((s) => w.some((r) => r[s.key]));
-        const vals = series.flatMap((s) => w.map((r) => r[s.key]));
+        const vals = series.flatMap((s) => w.map((r) => num(r[s.key])));
         const max = Math.max(...vals, 0), min = Math.min(...vals, 0);
         const step0 = niceTicks(max - min || 1, 4).ticks[1] || 1;
         const lo = min < 0 ? Math.floor(min / step0) * step0 : 0;
         const { ticks, top } = niceTicks(max - lo || 1, 4);
         const hi = lo + top;
         const n = Math.max(w.length - 1, 1);
-        const X = (i) => (i / n) * 1000, Y = (v) => 6 + (1 - (v - lo) / (hi - lo || 1)) * 168;
-        const line = (key) => 'M' + w.map((r, i) => `${X(i).toFixed(1)} ${Y(r[key]).toFixed(1)}`).join(' L');
-        const last = w[w.length - 1];
-        const legendItems = series.map((s) => <span key={s.key}><i style={{ background: s.color }} />{s.label} <b>{amount(last[s.key])}</b></span>);
-        const legendSx = { fontSize: 12.5, '& i': { display: 'inline-block', width: 10, height: 2, verticalAlign: 'middle', mr: 0.5 } };
+        const H = 200;
+        const X = (i) => (w.length === 1 ? 500 : (i / n) * 1000), Y = (v) => 8 + (1 - (num(v) - lo) / (hi - lo || 1)) * (H - 16);
+        const pts = (key) => w.map((r, i) => `${X(i).toFixed(1)} ${Y(r[key]).toFixed(1)}`);
+        const at = hover != null && w[hover] ? hover : w.length - 1;
+        const cur = w[at], prev = w[at - 1];
+        const change = prev ? num(cur.balance) - num(prev.balance) : null;
         return (
-          <>
-          {/* Phones: the legend sits above the chart, where it cannot cover the lines. */}
-          {legend && (
-            <Mono component="div" sx={{ ...legendSx, display: { xs: 'flex', sm: 'none' }, flexWrap: 'wrap', gap: '2px 12px', px: 1.5, pt: 0.5 }}>
-              {legendItems}
-              <Box component="span" sx={{ color: 'cockpit.tx2' }}>Total {amount(last.balance)}</Box>
-            </Mono>
-          )}
-          <Box sx={{ position: 'relative', height: 180, m: '12px 54px 24px 12px' }}>
-            <svg viewBox="0 0 1000 180" preserveAspectRatio="none" style={svgBox} aria-hidden>
-              <path d={ticks.map((t) => `M0 ${Y(lo + t).toFixed(1)} H1000`).join(' ')} stroke={c.line} fill="none" vectorEffect="non-scaling-stroke" />
-              {series.map((s) => <path key={s.key} d={line(s.key)} stroke={s.color} strokeWidth={1.75} fill="none" vectorEffect="non-scaling-stroke" />)}
-            </svg>
-            {ticks.map((t) => <Mono key={t} sx={{ position: 'absolute', right: -50, top: `${(Y(lo + t) / 180) * 100}%`, transform: 'translateY(-50%)', fontSize: 12.5, color: 'cockpit.tx3' }}>{axisAmount(lo + t)}</Mono>)}
-            {w.map((r, i) => (
-              <Box key={r.month}>
-                {series.map((s) => (
-                  <Box key={s.key} title={`${formatMonth(r.month)} · cash ${amount(r.cash)} € · savings ${amount(r.savings)} € · investments ${amount(r.investment)} € · total ${amount(r.balance)} €`}
-                    sx={{ position: 'absolute', left: `${X(i) / 10}%`, top: `${(Y(r[s.key]) / 180) * 100}%`, width: 5, height: 5, m: '-3px 0 0 -3px', borderRadius: '50%', bgcolor: 'cockpit.panel', border: 1, borderColor: s.color }} />
+          // The legend goes 2 × 2 or 4 across by the width of its card, not the window.
+          <Box sx={{ containerType: 'inline-size' }}>
+            <Box sx={{ position: 'relative', height: { xs: 180, md: H }, m: { xs: '10px 48px 24px 10px', md: '12px 54px 24px 12px' } }} onMouseLeave={() => setHover(null)}>
+              <svg viewBox={`0 0 1000 ${H}`} preserveAspectRatio="none" style={svgBox} aria-hidden>
+                <path d={ticks.map((t) => `M0 ${Y(lo + t).toFixed(1)} H1000`).join(' ')} stroke={c.line} fill="none" vectorEffect="non-scaling-stroke" />
+                {series.some((s) => s.total) && w.length > 1 && (
+                  <path d={`M${pts('balance').join(' L')} L${X(w.length - 1)} ${Y(lo)} L${X(0)} ${Y(lo)} Z`} fill={c.tx} fillOpacity={0.06} stroke="none" />
+                )}
+                <path d={`M${X(at)} 0 V${H}`} stroke={c.line2} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+                {[...series].reverse().map((s) => (
+                  <path key={s.key} d={`M${pts(s.key).join(' L')}`} stroke={s.color} strokeWidth={s.total ? 2.5 : 1.5} fill="none" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
                 ))}
-                <Mono sx={{ position: 'absolute', left: `${X(i) / 10}%`, bottom: -18, transform: i === 0 ? 'translateX(-12px)' : 'translateX(-50%)', fontSize: 12.5, color: i === w.length - 1 ? 'cockpit.tx' : 'cockpit.tx3', whiteSpace: 'nowrap', display: { xs: i === 0 || (w.length - 1 - i) % 3 === 0 ? 'block' : 'none', sm: 'block' } }}>{formatShortMonth(r.month)}</Mono>
+              </svg>
+              {ticks.map((t) => <Mono key={t} sx={{ position: 'absolute', right: { xs: -44, md: -50 }, top: `${(Y(lo + t) / H) * 100}%`, transform: 'translateY(-50%)', fontSize: 12, color: 'cockpit.tx3' }}>{axisAmount(lo + t)}</Mono>)}
+              {/* Markers on the month in view only, with a ring in the panel colour. */}
+              {series.map((s) => (
+                <Box key={s.key} sx={{ position: 'absolute', left: `${X(at) / 10}%`, top: `${(Y(cur[s.key]) / H) * 100}%`, width: s.total ? 9 : 7, height: s.total ? 9 : 7, m: s.total ? '-4.5px 0 0 -4.5px' : '-3.5px 0 0 -3.5px', borderRadius: '50%', bgcolor: s.color, boxShadow: `0 0 0 2px ${c.panel}`, pointerEvents: 'none' }} />
+              ))}
+              {w.map((r, i) => (
+                <Mono key={r.month} sx={{ position: 'absolute', left: `${X(i) / 10}%`, bottom: -20, transform: i === 0 && w.length > 1 ? 'translateX(-2px)' : 'translateX(-50%)', fontSize: 12, color: i === at ? 'cockpit.tx' : 'cockpit.tx3', fontWeight: i === at ? 600 : 400, whiteSpace: 'nowrap', pointerEvents: 'none',
+                  display: { xs: i === at || i === 0 || (w.length - 1 - i) % 3 === 0 ? 'block' : 'none', sm: 'block' } }}>{formatShortMonth(r.month)}</Mono>
+              ))}
+              {/* Pointer and tap targets: one column per month. */}
+              <Box sx={{ position: 'absolute', inset: 0, display: 'flex', mx: w.length > 1 ? `${-50 / n}%` : 0 }}>
+                {w.map((r, i) => (
+                  <Box key={r.month} onMouseEnter={() => setHover(i)} onClick={() => setHover(i)} title={formatMonth(r.month)}
+                    sx={{ flex: '1 1 0', cursor: 'crosshair' }} />
+                ))}
               </Box>
-            ))}
-            {legend && (
-            <Mono component="div" sx={{ ...legendSx, position: 'absolute', left: 4, top: 0, display: { xs: 'none', sm: 'flex' }, flexDirection: 'column', gap: '1px', bgcolor: 'cockpit.panel', px: 0.75, py: 0.5, borderRadius: '6px' }}>
-              {legendItems}
-              <Box component="span" sx={{ color: 'cockpit.tx2' }}>Total {amount(last.balance)}</Box>
-            </Mono>
-            )}
+            </Box>
+            <Stack direction="row" sx={{ alignItems: 'baseline', gap: 1, px: 1.5, mt: 0.5, mb: 0.75 }}>
+              <Mono sx={{ fontSize: 13, fontWeight: 600, textTransform: 'capitalize' }}>{formatMonth(cur.month)}</Mono>
+              {change != null && <Mono sx={{ fontSize: 12.5, color: change >= 0 ? 'cockpit.pos' : 'cockpit.neg' }}>{signedAmount(change)} € on the month</Mono>}
+            </Stack>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '6px 12px', '@container (min-width: 560px)': { gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }, px: 1.5 }}>
+              {series.map((s) => (
+                <Box key={s.key} sx={{ minWidth: 0 }}>
+                  <Stack direction="row" sx={{ alignItems: 'center', gap: 0.75, fontSize: 13, color: 'cockpit.tx2' }}>
+                    <Box sx={{ width: 14, height: s.total ? 3 : 2, borderRadius: 2, bgcolor: s.color, flex: 'none' }} />{s.label}
+                  </Stack>
+                  <Mono sx={{ fontSize: s.total ? 16 : 14, fontWeight: s.total ? 700 : 600, whiteSpace: 'nowrap' }}>{amount(cur[s.key])}</Mono>
+                </Box>
+              ))}
+            </Box>
           </Box>
-          </>
         );
       }}
     </QueryState>
