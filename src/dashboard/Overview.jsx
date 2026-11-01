@@ -3,14 +3,14 @@
 
 import { useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Box, Button, IconButton, Skeleton, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Button, IconButton, Skeleton, Stack, Typography } from '@mui/material';
 import { Title } from 'react-admin';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useCategories, useMonths } from '../hooks.js';
 import { num } from '../backend.js';
 import { amount, formatDayMonth, formatMonth, formatShortMonth, signedAmount, txnName } from '../format.js';
-import { BalanceChart, EmptyOrDenied, balanceSeries, avg, rollup, thisMonth, transactionsLink, useBalance, useBreakdown, useMonthTransactions } from './Dashboard.jsx';
+import { BalanceChart, EmptyOrDenied, avg, rollup, thisMonth, transactionsLink, useBalance, useBreakdown, useMonthTransactions } from './Dashboard.jsx';
 
 const SHOWN_CATEGORIES = 9;
 const AVERAGE_MONTHS = 6;
@@ -144,24 +144,6 @@ function WhereItWent({ month, spent }) {
   );
 }
 
-function BalanceLegend({ month }) {
-  const { cockpit: c, mode } = useTheme().palette;
-  const balance = useBalance();
-  const b = (balance.data || []).find((r) => r.month === month);
-  if (!b) return null;
-  return (
-    <Stack sx={{ gap: 0.75, mt: 1 }}>
-      {balanceSeries(c, mode).map((s) => (
-        <Stack key={s.key} direction="row" sx={{ alignItems: 'center', gap: 1, fontSize: 14 }}>
-          <Box sx={{ width: 14, height: 3, borderRadius: 2, bgcolor: s.color }} />
-          <span>{s.label}</span>
-          <Box component="b" sx={{ ...figureSx, ml: 'auto', fontWeight: 600 }}>{euro(b[s.key])}</Box>
-        </Stack>
-      ))}
-    </Stack>
-  );
-}
-
 function Latest({ query }) {
   if (query.isPending) return <Skeleton variant="rounded" height={220} />;
   const rows = (query.data || []).slice(0, 5);
@@ -231,8 +213,7 @@ export function Overview() {
         <Box sx={{ flex: '1 1 340px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: { xs: 2, md: 3 } }}>
           <Card title="Balance">
             <Typography sx={{ fontSize: 14, color: 'cockpit.tx3', mt: -1, mb: 1 }}>Last 12 months · investments at what you put in</Typography>
-            <Box sx={{ mx: -1.5 }}><BalanceChart month={month} legend={false} /></Box>
-            <BalanceLegend month={month} />
+            <Box sx={{ mx: -1.5 }}><BalanceChart month={month} /></Box>
           </Card>
           <Card title="Latest" link={<TextLink to={transactionsLink({ month })}>All transactions ›</TextLink>}>
             <Latest query={txQuery} />
